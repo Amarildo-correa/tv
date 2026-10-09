@@ -58,8 +58,12 @@
   --head-gap: 1rem;   /* título → cards */
   --row-h: calc((var(--vp-h) - var(--row-gap)) / 1.5);
   --card-h: calc(var(--row-h) - var(--head-h) - var(--head-gap));
-  /* Texto abaixo da imagem: espaço (.875) + título em 2 linhas (2.25 × 1.25 × 2) + espaço (.5) + data (1.5 × 1.25) */
-  --card-txt: 8.875rem;
+  /* Texto abaixo da imagem: tag (1.5 × 1.25) + .375 + título em 2 linhas (2.25 × 1.25 × 2) + .5
+     + resumo em 3 linhas (1.75 × 1.35 × 3) + .625 + data (1.5 × 1.25) */
+  --size-excerpt: 1.75rem; /* 28 px em 1080p */
+  --card-txt: 17.9625rem;
+  /* A tag começa sobre a parte da imagem que já sumiu no degradê */
+  --card-overlap: 1.5rem;
 
   --ring: 4px;
   --dur: 180ms;
@@ -351,10 +355,25 @@ html:not(.pointer) .wx:focus .wx-msg { margin-right: 0; }
 }
 .card .media {
   flex: 0 0 auto; width: 100%;
-  height: calc(var(--card-h) - 2 * var(--card-pad) - var(--card-txt)); min-height: 8rem;
+  height: calc(var(--card-h) - 2 * var(--card-pad) - var(--card-txt) + var(--card-overlap)); min-height: 8rem;
   border-radius: .75rem;
 }
-.card .txt { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; margin-top: .875rem; padding: 0 .25rem; }
+/* Degradê na base da imagem: a foto se dissolve na cor de fundo do card antes da tag
+   (--fade acompanha o fundo: o da página no controle, o azul-marinho no hover do cursor) */
+.card { --fade: 18, 18, 18; }
+.card .media::after {
+  content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to bottom,
+    rgba(var(--fade), 0) 40%, rgba(var(--fade), .08) 52%, rgba(var(--fade), .25) 64%,
+    rgba(var(--fade), .5) 76%, rgba(var(--fade), .78) 88%, rgba(var(--fade), 1) 100%);
+}
+.card .txt { position: relative; z-index: 1; flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; margin-top: calc(-1 * var(--card-overlap)); padding: 0 .25rem; }
+.card .tag { font-size: var(--size-meta); line-height: 1.25; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+.card .excerpt {
+  margin: 0;
+  font-size: var(--size-excerpt); line-height: 1.35; color: var(--text-body);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;
+}
 .card h3 {
   margin: 0;
   font-family: var(--font-title); font-weight: 700;
@@ -463,6 +482,7 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
 .day > * + * { margin-top: .5rem; }
 .row > * + * { margin-top: var(--head-gap); }
 .card .txt > * + * { margin-top: .5rem; }
+.card .txt > .tag + h3 { margin-top: .375rem; }
 .reader-text > * + * { margin-top: 1.5rem; }
 .reader-body > p + p { margin-top: 1.75rem; }
 .fc > * + * { margin-top: 2.5rem; }
@@ -518,7 +538,7 @@ html.pointer body.has-overlay .app { display: none; }
 html.pointer .pill:hover { color: var(--accent); transform: scale(1.06); }
 html.pointer .back:hover { color: var(--accent); transform: scale(1.06); }
 
-html.pointer .card:hover { background-color: var(--surface-hover); }
+html.pointer .card:hover { background-color: var(--surface-hover); --fade: 17, 34, 58; }
 html.pointer .card:hover h3 { color: var(--accent); text-decoration-line: underline; }
 html.pointer .card:hover .media img,
 html.pointer .feature:hover .media img { animation: focus-zoom 500ms cubic-bezier(.25, .1, .25, 1) 80ms both; }
@@ -960,8 +980,9 @@ html:not(.pointer), html:not(.pointer) * { cursor: none !important; }
           list.map(function (s) {
             return '<button class="card" type="button" data-id="' + s.id + '">' +
               mediaHTML(s, '', true) +
-              '<span class="txt">' +
+              '<span class="txt"><span class="tag">' + esc(s.cat) + '</span>' +
               '<h3>' + esc(s.title) + '</h3>' +
+              '<span class="excerpt">' + esc(s.body[0]) + '</span>' +
               '<span class="time">' + ago(s.mins) + '</span></span>' +
             '</button>';
           }).join('') +
