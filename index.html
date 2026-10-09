@@ -220,20 +220,21 @@ html:not(.pointer) .feature:focus { outline-color: var(--focus); }
   transition: opacity var(--dur) ease;
 }
 html:not(.pointer) .feature:focus .feature-clip::before { opacity: 0; }
-.feature .media { position: absolute; top: 0; bottom: 0; right: 0; left: 28%; border-radius: 0; z-index: 1; }
+.feature .media { position: absolute; top: 0; bottom: 0; right: 0; left: 20%; border-radius: 0; z-index: 1; }
 .feature .media::after {
   content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1; pointer-events: none;
-  /* Sólido sob a coluna de texto (que avança ~24% sobre a foto) e depois some suavemente */
-  background: linear-gradient(to right, rgba(var(--fb), 1) 0%, rgba(var(--fb), 1) 23%, rgba(var(--fb), .96) 26%, rgba(var(--fb), .86) 29%, rgba(var(--fb), .7) 32%, rgba(var(--fb), .5) 35%, rgba(var(--fb), .31) 38%, rgba(var(--fb), .16) 41%, rgba(var(--fb), .06) 44%, rgba(var(--fb), 0) 47%);
+  /* Sólido só sob a coluna de texto (que avança ~22% sobre a foto) e depois some suavemente */
+  background: linear-gradient(to right, rgba(var(--fb), 1) 0%, rgba(var(--fb), 1) 21%, rgba(var(--fb), .96) 23.5%, rgba(var(--fb), .86) 26%, rgba(var(--fb), .7) 28.5%, rgba(var(--fb), .5) 31%, rgba(var(--fb), .31) 33.5%, rgba(var(--fb), .16) 36%, rgba(var(--fb), .06) 38.5%, rgba(var(--fb), 0) 41%);
 }
 /* Coluna de texto estreita: o texto quebra em mais linhas e ocupa a altura do destaque, liberando largura para a foto */
+/* Texto começa no topo e desce pela altura toda; o botão aparece embaixo no foco sem empurrar o texto */
 .feature-text {
-  position: relative; z-index: 2; height: 100%; width: 23rem; max-width: 100%;
-  display: flex; flex-direction: column; justify-content: flex-end;
-  padding: 2.5rem 1.5rem 2.75rem 3rem;
+  position: relative; z-index: 2; height: 100%; width: 19.75rem; max-width: 100%;
+  display: flex; flex-direction: column; justify-content: flex-start;
+  padding: 2.5rem 1.25rem 2rem 3rem;
 }
-/* Só no destaque: título em até 5 linhas e resumo em 2 (nos cards, 2 e 3), ocupando a altura em vez da largura */
-.feature .n-title { -webkit-line-clamp: 5; }
+/* Só no destaque: título em até 6 linhas e resumo em 2 (nos cards, 2 e 3), ocupando a altura em vez da largura */
+.feature .n-title { -webkit-line-clamp: 6; }
 .feature .n-excerpt { -webkit-line-clamp: 2; }
 /* O botão é mais largo que a coluna estreita: deixa ele passar por cima da foto em vez de ser cortado */
 .feature .cta-wrap { width: -webkit-max-content; width: max-content; }
@@ -249,7 +250,7 @@ html:not(.pointer) .feature:focus .feature-clip::before { opacity: 0; }
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .feature .cta-wrap { margin: 0 0 0 calc(-1.375rem - 4px); }
-html:not(.pointer) .feature:focus .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 2.5rem; }
+html:not(.pointer) .feature:focus .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 1.5rem; }
 .feature .cta { height: 3.875rem; padding: 0 2.75rem 0 2.25rem; font-size: 1.625rem; }
 .feature .cta .ms { font-size: 2.25rem; }
 
@@ -546,7 +547,7 @@ html.pointer .feature:hover .media img { animation: focus-zoom 500ms cubic-bezie
 
 html.pointer .feature:hover .feature-clip::before { opacity: 0; }
 html.pointer .feature:hover .n-title { color: var(--accent); text-decoration-line: underline; }
-html.pointer .feature:hover .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 2.5rem; }
+html.pointer .feature:hover .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 1.5rem; }
 
 html.pointer .wx:hover { background-color: var(--surface-hover); }
 html.pointer .wx:hover .wx-title { color: var(--accent); text-decoration-line: underline; }
