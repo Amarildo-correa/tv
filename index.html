@@ -4,12 +4,44 @@
 <meta charset="utf-8">
 <meta name="viewport" id="vp" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>
-  /* Navegadores de TV que entregam uma tela menor que 1080p (o Silk do Fire OS usa 960×540) desenham a página
-     em baixa resolução e ampliam: fica pixelado. Fixar a largura em 1920 px faz o navegador desenhar em 1080p.
-     O layout é todo proporcional à largura (rem = 100vw / 120), então a página fica idêntica, só mais nítida. */
+  /* ===== Dispositivos compatíveis: navegadores de computador (desktop) e de TV =====
+     Roda antes de qualquer pintura. Classifica o aparelho físico em 'tv', 'mobile', 'tablet' ou 'desktop'
+     cruzando quatro sinais, do mais confiável ao mais genérico:
+       1. Marcas de TV no user agent (Fire TV, Samsung Tizen, LG webOS, Android/Google TV, Sony, Hisense…)
+       2. User-Agent Client Hints: navigator.userAgentData.mobile (Chromium recente, difícil de mascarar)
+       3. User agent de celular/tablet, incluindo o iPad que se apresenta como Mac (toque + "Macintosh")
+       4. Hardware de entrada: tela só de toque, sem nenhum ponteiro fino (mouse/trackpad) disponível
+     Celular e tablet recebem a tela de aviso; computador e TV abrem o app normalmente.
+     É uma barreira de interface: o site é estático (GitHub Pages) e não há como bloquear no servidor. */
   (function () {
-    var tv = /Silk|AFT[A-Z]|SMART-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|Android TV|GoogleTV|CrKey|HbbTV|VIDAA/i;
-    if (tv.test(navigator.userAgent) && screen.width < 1920) {
+    var ua = navigator.userAgent || '';
+    var root = document.documentElement;
+    var TV = /SMART-TV|SmartTV|Tizen[^;]*TV|Web0S|webOS.*TV|NetCast|BRAVIA|Android TV|GoogleTV|Google TV|CrKey|HbbTV|VIDAA|AFT[A-Z]|AppleTV|Roku|PhilipsTV|Viera|AQUOSBrowser|LargeScreen|Large Screen|TV Safari/i;
+    var MOBILE = /iPhone|iPod|Windows Phone|IEMobile|BlackBerry|BB10|Opera Mini|Mobile Safari|Mobi|Android.*Mobile/i;
+    var TABLET = /iPad|Tablet|Kindle|\bKF[A-Z]{2,}\b|PlayBook|Nexus (7|9|10)|SM-T\d|Lenovo TB|\bTab\b/i;
+    function mq(q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } }
+    var touchPoints = navigator.maxTouchPoints || 0;
+    var kind;
+    if (TV.test(ua)) kind = 'tv';
+    else if (TABLET.test(ua)) kind = 'tablet'; /* antes do celular: o iPad também manda "Mobile" */
+    else if (/Macintosh/i.test(ua) && touchPoints > 1) kind = 'tablet'; /* iPadOS no modo "site para computador" */
+    else if (MOBILE.test(ua)) kind = 'mobile';
+    else if (/Android/i.test(ua)) kind = 'tablet'; /* Android sem "Mobile" e sem marca de TV */
+    else if (navigator.userAgentData && navigator.userAgentData.mobile === true) kind = 'mobile';
+    /* Só toque, sem mouse/trackpad: celular ou tablet no modo "site para computador" (o Chrome do Android vira "X11; Linux").
+       Windows e Chromebook ficam de fora: são PCs mesmo quando usados como tablet (ex.: Surface sem teclado). */
+    else if (!/Windows NT|CrOS/i.test(ua) && touchPoints > 0 && mq('(pointer: coarse)') && !mq('(any-pointer: fine)') && !mq('(any-hover: hover)')) kind = 'mobile';
+    else kind = 'desktop';
+
+    var supported = kind === 'tv' || kind === 'desktop';
+    window.ROT_DEVICE = { kind: kind, supported: supported };
+    root.setAttribute('data-device', kind);
+    if (!supported) { root.classList.add('unsupported'); return; }
+
+    /* Navegadores de TV que entregam uma tela menor que 1080p (o Silk do Fire OS usa 960×540) desenham a página
+       em baixa resolução e ampliam: fica pixelado. Fixar a largura em 1920 px faz o navegador desenhar em 1080p.
+       O layout é todo proporcional à largura (rem = 100vw / 120), então a página fica idêntica, só mais nítida. */
+    if (kind === 'tv' && screen.width < 1920) {
       document.getElementById('vp').setAttribute('content', 'width=1920, viewport-fit=cover');
     }
   })();
@@ -17,7 +49,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,foggy,gamepad,humidity_percentage,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,rainy,rainy_heavy,rainy_light,sports_soccer,theater_comedy,thermostat,thunderstorm,trending_up,umbrella,water_drop,wb_twilight,weather_snowy&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,computer,foggy,gamepad,humidity_percentage,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,rainy,rainy_heavy,rainy_light,sports_soccer,theater_comedy,thermostat,thunderstorm,trending_up,tv,umbrella,water_drop,wb_twilight,weather_snowy&display=block">
 <style>
 /* Layout: tela de TV 1920×1080 em rem (1rem = 16px em 1080p), margem de segurança de 5%, header sem fundo,
    destaque em duas colunas (notícia + previsão do tempo) e rails que deslizam na vertical */
@@ -634,6 +666,37 @@ html.pointer .peek:hover .ms { transform: scale(1.12); }
 /* Navegação por controle/teclado: esconde o ponteiro do mouse */
 html:not(.pointer), html:not(.pointer) * { cursor: none !important; }
 
+/* ===== Aviso para dispositivos não compatíveis (celular e tablet) =====
+   Layout próprio em px de tela de celular: o resto da página usa rem = 100vw / 120, que num celular daria letras minúsculas. */
+.unsupported-screen { display: none; }
+html.unsupported { font-size: 16px; height: auto; }
+html.unsupported body { height: auto; min-height: 100%; overflow: auto; background: var(--bg); }
+html.unsupported, html.unsupported * { cursor: auto !important; }
+html.unsupported .app, html.unsupported .overlay, html.unsupported .mode-sheet { display: none !important; }
+html.unsupported .unsupported-screen {
+  display: flex; flex-direction: column; justify-content: center;
+  min-height: 100vh; max-width: 34rem; margin: 0 auto;
+  padding: 3rem 1.5rem calc(3rem + env(safe-area-inset-bottom, 0px));
+  color: var(--text-body); font-weight: 500;
+}
+.unsupported-screen .us-logo { margin: 0 0 2.5rem; font-family: var(--font-title); font-weight: 700; font-size: 1.5rem; color: var(--text-title); }
+.unsupported-screen .us-icons { display: flex; align-items: center; margin-bottom: 1.5rem; }
+.unsupported-screen .us-icons span {
+  width: 4rem; height: 4rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(102, 178, 255, .16); color: var(--accent);
+}
+.unsupported-screen .us-icons span + span { margin-left: .75rem; }
+.unsupported-screen .us-icons .ms { font-size: 2.25rem; }
+.unsupported-screen h1 { margin: 0; font-family: var(--font-title); font-weight: 700; font-size: 1.875rem; line-height: 1.2; color: var(--accent); }
+.unsupported-screen p { margin: 1rem 0 0; font-size: 1.125rem; line-height: 1.5; }
+.unsupported-screen .us-url {
+  margin-top: 1.5rem; padding: 1rem 1.25rem; border-radius: 1rem;
+  background: linear-gradient(180deg, #1f2a36 0%, #161b21 100%);
+  font-size: 1.125rem; color: var(--text-title); word-break: break-all;
+}
+.unsupported-screen .us-url small { display: block; margin-bottom: .25rem; font-size: .875rem; color: var(--text-meta); }
+.unsupported-screen .us-note { font-size: .9375rem; color: var(--text-meta); }
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
   html:not(.pointer) .pill:focus, html:not(.pointer) .back:focus { transform: none; }
@@ -644,6 +707,19 @@ html:not(.pointer), html:not(.pointer) * { cursor: none !important; }
   html.pointer .card:hover .media img, html.pointer .feature:hover .media img { animation: none !important; }
 }
 </style>
+
+<main class="unsupported-screen" id="unsupported" aria-labelledby="usTitle">
+  <p class="us-logo">Read on TV</p>
+  <div class="us-icons" aria-hidden="true">
+    <span><span class="ms">computer</span></span>
+    <span><span class="ms">tv</span></span>
+  </div>
+  <h1 id="usTitle">Disponível no computador e na TV</h1>
+  <p>No momento, o Read on TV funciona apenas em navegadores de computador (desktop PC) e de Smart TV. Celulares e tablets ainda não são compatíveis.</p>
+  <p>Abra o endereço abaixo no navegador do seu computador ou da sua TV:</p>
+  <div class="us-url"><small>Endereço</small><span id="usUrl">amarildo-correa.github.io/tv</span></div>
+  <p class="us-note">Se você está num computador e vê esta mensagem, desative o modo de site para celular do navegador e recarregue a página.</p>
+</main>
 
 <div class="app" id="app">
   <header class="top">
@@ -706,6 +782,12 @@ html:not(.pointer), html:not(.pointer) * { cursor: none !important; }
 
 <script>
 (function () {
+  /* Celular e tablet: mostra só o aviso e não monta o app */
+  if (window.ROT_DEVICE && !window.ROT_DEVICE.supported) {
+    var u = document.getElementById('usUrl');
+    if (u && location.host) u.textContent = location.host + location.pathname.replace(/index\.html$/, '');
+    return;
+  }
   var CATS = {
     Cidade:   'location_city',
     Economia: 'trending_up',
