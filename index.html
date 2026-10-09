@@ -117,6 +117,8 @@ html { scrollbar-color: rgba(255, 255, 255, .3) transparent; }
 ::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, .45); }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+/* Só para leitor de tela: texto fora da tela, sem afetar o layout visual */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 body {
   margin: 0;
   height: 100%;
@@ -707,6 +709,15 @@ html.unsupported .unsupported-screen {
   html.pointer .pill:hover, html.pointer .back:hover, html.pointer .peek:hover .ms { transform: none; }
   html.pointer .card:hover .media img, html.pointer .feature:hover .media img { animation: none !important; }
 }
+
+/* Alto contraste do sistema (Windows High Contrast / forced-colors): mantém o anel de foco
+   visível mesmo quando o navegador substitui as cores do tema por cores do SO. */
+@media (forced-colors: active) {
+  html:not(.pointer) .pill:focus, html:not(.pointer) .back:focus,
+  html:not(.pointer) .card:focus, html:not(.pointer) .feature:focus,
+  html:not(.pointer) .wx:focus { outline: 3px solid Highlight !important; outline-offset: 2px; }
+  .frame { outline-color: Highlight !important; }
+}
 </style>
 
 <main class="unsupported-screen" id="unsupported" aria-labelledby="usTitle">
@@ -732,7 +743,7 @@ html.unsupported .unsupported-screen {
       <span class="hh" id="time">--:--</span>
     </div>
     <span class="sep accent" aria-hidden="true"></span>
-    <div class="weather" id="weather" aria-label="Tempo agora em Novo Hamburgo">
+    <div class="weather" id="weather" role="img" aria-label="Tempo agora em Novo Hamburgo">
       <span class="ms" aria-hidden="true">partly_cloudy_day</span>
       <span class="temp">--°</span>
       <span class="lbl">Carregando</span>
@@ -1255,6 +1266,7 @@ html.unsupported .unsupported-screen {
     el.hidden = false;
     el.scrollTop = 0;
     app.setAttribute('aria-hidden', 'true');
+    app.setAttribute('inert', '');
     document.body.classList.add('has-overlay');
     if (mode === 'pointer') { savedScroll = y; window.scrollTo(0, 0); }
     else el.querySelector('.back').focus({ preventScroll: true });
@@ -1266,6 +1278,7 @@ html.unsupported .unsupported-screen {
     overlay = null;
     pushed = false;
     app.removeAttribute('aria-hidden');
+    app.removeAttribute('inert');
     document.body.classList.remove('has-overlay');
     if (mode === 'pointer') {
       if (savedScroll === null) scrollToRow(lastContent, false);
@@ -1478,6 +1491,7 @@ html.unsupported .unsupported-screen {
     }
     if (overlay) {
       if (isBack) { e.preventDefault(); requestClose(); }
+      else if (e.key === 'Tab') { e.preventDefault(); overlay.querySelector('.back').focus({ preventScroll: true }); }
       else if (key === 'ArrowDown' || key === 'ArrowUp') {
         e.preventDefault();
         overlay.scrollBy({ top: (key === 'ArrowDown' ? 1 : -1) * window.innerHeight * 0.3, behavior: reduceMotion ? 'auto' : 'smooth' });
@@ -1535,10 +1549,13 @@ html.unsupported .unsupported-screen {
   function deg(n) { return Math.round(n) + '°'; }
 
   function setHeaderWeather(icon, temp, label) {
-    document.getElementById('weather').innerHTML =
+    var el = document.getElementById('weather');
+    el.innerHTML =
       '<span class="ms" aria-hidden="true">' + icon + '</span>' +
       (temp !== null ? '<span class="temp">' + temp + '</span>' : '') +
       '<span class="lbl">' + esc(label) + '</span>';
+    /* role="img": o leitor de tela anuncia este rótulo (com a temperatura/condição reais) em vez do texto solto */
+    el.setAttribute('aria-label', 'Tempo agora em Novo Hamburgo: ' + (temp !== null ? temp + ', ' : '') + label);
   }
 
   function renderStrip() {
@@ -1591,6 +1608,7 @@ html.unsupported .unsupported-screen {
       var hw = wmo(h.weather_code[j], h.is_day[j] === 1);
       hours += '<div class="hour"><span class="h">' + (k === 0 ? 'Agora' : h.time[j].slice(11, 16)) + '</span>' +
         '<span class="ms fill" aria-hidden="true">' + hw[1] + '</span>' +
+        '<span class="sr-only">' + hw[0] + '</span>' +
         '<span class="t">' + deg(h.temperature_2m[j]) + '</span>' +
         '<span class="p"><span class="ms fill" aria-hidden="true">water_drop</span>' + (h.precipitation_probability[j] || 0) + '%</span></div>';
     }
