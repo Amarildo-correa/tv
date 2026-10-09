@@ -130,7 +130,7 @@ html:not(.pointer) .pill:focus { background: var(--focus); color: var(--on-focus
 .rows {
   position: relative;
   display: flex; flex-direction: column;
-  padding-top: 1rem; padding-bottom: 60vh;
+  padding-top: 1rem; padding-bottom: 3rem;
   transition: transform var(--slide);
 }
 
@@ -462,7 +462,7 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
    para o Silk conseguir descer pelas linhas levando o cursor até a borda da tela. */
 .card h3, .headline, .wx-title { transition: color var(--dur) ease; text-decoration-thickness: .125rem; text-underline-offset: .3rem; }
 html.pointer body { height: auto; overflow-x: hidden; overflow-y: auto; }
-html.pointer .app { height: auto; min-height: 100%; padding-top: 0; padding-bottom: 4rem; }
+html.pointer .app { height: auto; min-height: 100%; padding-top: 0; padding-bottom: 0; }
 html.pointer .top {
   position: -webkit-sticky; position: sticky; top: 0; top: env(safe-area-inset-top, 0px);
   margin-left: calc(-1 * var(--gutter)); margin-right: calc(-1 * var(--gutter)); padding: 2.5rem var(--gutter) 0; min-height: 7rem;
@@ -476,7 +476,6 @@ html.pointer .top::after {
 html.pointer .top.stuck { background-color: var(--bg); }
 html.pointer .top.stuck::after { opacity: 1; }
 html.pointer .viewport { overflow: visible; }
-/* Mesmo respiro do modo controle: toda linha, até a última, consegue subir até logo abaixo do cabeçalho */
 html.pointer .rows { transform: none !important; }
 html.pointer .frame { opacity: 0 !important; }
 html.pointer .overlay { position: absolute; top: 0; left: 0; right: 0; bottom: auto; min-height: 100%; overflow: visible; }
@@ -992,6 +991,8 @@ html:not(.pointer), html:not(.pointer) * { cursor: none !important; }
     var r = rows[i];
     if (!r || r.type === 'nav') return;
     var y = r.type === 'rail' ? r.el.offsetTop : 0;
+    /* Não sobe além do fim do conteúdo: as últimas linhas param encostadas na base, sem espaço vazio */
+    y = Math.min(y, Math.max(0, rowsEl.offsetHeight - viewport.clientHeight));
     rowsEl.style.transform = 'translateY(' + (-y) + 'px)';
   }
 
@@ -1205,6 +1206,8 @@ html:not(.pointer), html:not(.pointer) * { cursor: none !important; }
     if (mode !== 'pointer' || overlay) return;
     topEl.classList.toggle('stuck', window.scrollY > 2);
     var i = rowAtTop();
+    /* No fim da página a última seção não chega ao topo; marca a última */
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) i = rows.length - 1;
     lastContent = i;
     setActiveSection(rows[i].section);
   }
