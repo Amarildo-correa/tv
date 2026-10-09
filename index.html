@@ -48,7 +48,7 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..600&family=Roboto:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,computer,foggy,gamepad,graphic_eq,humidity_percentage,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,pause,play_arrow,rainy,rainy_heavy,rainy_light,replay,skip_next,skip_previous,sports_soccer,stop,theater_comedy,thermostat,thunderstorm,trending_up,tv,umbrella,volume_off,water_drop,wb_twilight,weather_snowy&display=block">
 <style>
 /* Layout: tela de TV 1920×1080 em rem (1rem = 16px em 1080p), margem de segurança de 5%, header sem fundo,
@@ -71,8 +71,6 @@
      Uma família só, com dois pesos: 700 nos títulos e 500 no texto (mais firme que o 400 a 3 m de distância). */
   --font-title: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-body: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  /* Serifa de leitura (Newsreader, com tamanhos ópticos): só no título e no corpo da tela de leitura */
-  --font-read: 'Newsreader', Georgia, 'Times New Roman', serif;
 
   --size-headline: 3.5rem;
   --size-card-title: 2.25rem; /* 36 px em 1080p */
@@ -446,7 +444,7 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
 
 /* ===== Tela de leitura (post individual) — "elegante, imersiva, editorial" =====
    Luz ambiente tirada da própria foto (a miniatura de 500 px já está em cache pelos rails, desfocada),
-   título e corpo em serifa de leitura, foto emoldurada nítida (960 px) e barra de áudio flutuante no rodapé. */
+   tipografia do app (Roboto), foto emoldurada nítida (960 px) e barra de áudio flutuante no rodapé. */
 .overlay.reader { padding: 0; }
 .rd-ambient {
   position: absolute; top: 0; left: 0; right: 0; height: 66rem; z-index: 0; overflow: hidden; pointer-events: none;
@@ -478,8 +476,8 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
 }
 .rd-title {
   margin: 1.75rem 0 0;
-  font-family: var(--font-read); font-weight: 600; font-optical-sizing: auto;
-  font-size: 4.5rem; line-height: 1.08; letter-spacing: -.012em;
+  font-family: var(--font-title); font-weight: 700;
+  font-size: 4.5rem; line-height: 1.1; letter-spacing: -.01em;
   color: var(--text-title); text-wrap: balance;
   transition: color var(--dur) ease;
 }
@@ -493,12 +491,12 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
 .rd-body { position: relative; max-width: 64rem; margin-top: 5.5rem; }
 .rd-body p {
   position: relative; margin: 0;
-  font-family: var(--font-read); font-optical-sizing: auto; font-weight: 420;
-  font-size: var(--size-reader-body); line-height: 1.55; color: var(--text-body);
+  font-family: var(--font-body); font-weight: 500;
+  font-size: var(--size-reader-body); line-height: 1.5; color: var(--text-body);
   transition: color var(--dur) ease;
 }
 .rd-body p + p { margin-top: 2.25rem; }
-.rd-body p.lede { font-size: 3.125rem; line-height: 1.45; font-weight: 500; color: var(--text-title); }
+.rd-body p.lede { font-size: 3.125rem; line-height: 1.45; font-weight: 600; color: var(--text-title); }
 /* Trecho sendo lido: barra azul à esquerda; os demais recuam para o cinza de apoio (ainda 8:1 de contraste) */
 .rd-body p::before, .rd-title::before {
   content: ''; position: absolute; left: -2.75rem; top: .35em; bottom: .35em; width: .375rem;
