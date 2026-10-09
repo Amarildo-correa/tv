@@ -44,6 +44,9 @@
   --size-card-title: 2.25rem; /* 36 px em 1080p */
   --size-body: 2.125rem;      /* 34 px em 1080p: texto corrido da leitura */
   --size-meta: 1.5rem;
+  /* Tela de leitura (post individual): texto corrido bem maior e textos de apoio maiores para 3 m */
+  --size-reader-body: 2.75rem;  /* 44 px em 1080p */
+  --size-reader-meta: 1.875rem; /* 30 px em 1080p: editoria, data/autor e Voltar */
 
   --gutter: 9rem;
   --card-pad: .625rem;
@@ -405,11 +408,18 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
 
 .reader { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); grid-gap: 4rem; gap: 4rem; align-content: start; }
 .reader-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
-.reader-text .kicker { text-transform: none; letter-spacing: 0; }
-.reader-text .headline { -webkit-line-clamp: unset; display: block; }
+.reader-text .kicker { text-transform: none; letter-spacing: 0; font-size: var(--size-reader-meta); }
+.reader-text .kicker .rule { height: 2.5rem; }
+/* Título em azul, mesmo tamanho (--size-headline) */
+.reader-text .headline { -webkit-line-clamp: unset; display: block; color: var(--accent); }
+/* Data, autor e crédito da foto: maiores e quebrando linha se não couberem */
+.reader-text .meta { flex-wrap: wrap; font-size: var(--size-reader-meta); }
+.reader-text .meta > * { margin: 0 2.25rem .25rem 0; }
+.reader .back { height: 4.25rem; padding: 0 1.75rem 0 1.375rem; font-size: var(--size-reader-meta); }
+.reader .back .ms { font-size: 2.25rem; }
 .meta { display: flex; align-items: center; font-size: var(--size-meta); color: var(--text-meta); }
 .reader-body { display: flex; flex-direction: column; max-width: 58rem; }
-.reader-body p { margin: 0; font-size: var(--size-body); line-height: 1.55; color: var(--text-body); }
+.reader-body p { margin: 0; font-size: var(--size-reader-body); line-height: 1.5; color: var(--text-body); }
 .reader .media { width: 100%; height: 0; padding-top: 75%; margin-top: 5.5rem; }
 
 /* Previsão completa */
@@ -485,8 +495,8 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
 .row > * + * { margin-top: var(--head-gap); }
 .n-text > * + * { margin-top: .5rem; }
 .n-text > .n-tag + .n-title { margin-top: .375rem; }
-.reader-text > * + * { margin-top: 1.5rem; }
-.reader-body > p + p { margin-top: 1.75rem; }
+.reader-text > * + * { margin-top: 1.75rem; }
+.reader-body > p + p { margin-top: 2.25rem; }
 .fc > * + * { margin-top: 2.5rem; }
 .fc-now > * + * { margin-top: 2.5rem; }
 .now-card > * + * { margin-top: 2rem; }
