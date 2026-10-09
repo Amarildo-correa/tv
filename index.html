@@ -492,7 +492,6 @@ html.pointer .card:hover h3 { color: var(--accent); text-decoration-line: underl
 html.pointer .card:hover .media img,
 html.pointer .feature:hover .media img { animation: focus-zoom 1000ms cubic-bezier(.25, .1, .25, 1) 200ms both; }
 
-html.pointer .feature:hover { --fb: 17, 34, 58; } /* = --surface-hover */
 html.pointer .feature:hover .feature-clip::before { opacity: 0; }
 html.pointer .feature:hover .kicker .rule { opacity: 0; }
 html.pointer .feature:hover .headline { color: var(--accent); text-decoration-line: underline; }
@@ -531,7 +530,7 @@ html.pointer .peek:hover .ms { transform: scale(1.12); }
   display: flex; align-items: center;
   padding: 1.75rem 2.5rem 2rem 1.75rem;
   border-radius: 1.75rem;
-  background: #1E1E1E;
+  background: linear-gradient(180deg, #1f2a36 0%, #161b21 100%); /* mesmo fundo dos cartões .day */
   box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(255, 255, 255, .07);
   overflow: hidden;
   pointer-events: none;
