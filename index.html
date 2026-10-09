@@ -2,7 +2,18 @@
 <html lang="pt-BR">
 <title>Read on TV</title>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" id="vp" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+  /* Navegadores de TV que entregam uma tela menor que 1080p (o Silk do Fire OS usa 960×540) desenham a página
+     em baixa resolução e ampliam: fica pixelado. Fixar a largura em 1920 px faz o navegador desenhar em 1080p.
+     O layout é todo proporcional à largura (rem = 100vw / 120), então a página fica idêntica, só mais nítida. */
+  (function () {
+    var tv = /Silk|AFT[A-Z]|SMART-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|Android TV|GoogleTV|CrKey|HbbTV|VIDAA/i;
+    if (tv.test(navigator.userAgent) && screen.width < 1920) {
+      document.getElementById('vp').setAttribute('content', 'width=1920, viewport-fit=cover');
+    }
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@600&family=Raleway:wght@800&display=swap">
