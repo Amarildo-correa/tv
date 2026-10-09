@@ -522,10 +522,10 @@ html.pointer .peek:hover .ms { transform: scale(1.12); }
 
 
 /* ===== Aviso de troca de modo (10-foot UI) =====
-   Painel flutuante no lado direito da área principal, logo abaixo do cabeçalho: ícone grande, título curto e uma linha de ajuda,
+   Painel flutuante no canto inferior direito da área segura: ícone grande, título curto e uma linha de ajuda,
    legível a 3 m. Não rouba o foco nem bloqueia o controle; some sozinho após 4 s. */
 .mode-sheet {
-  position: fixed; right: var(--gutter); top: 8.5rem; z-index: 20;
+  position: fixed; right: var(--gutter); bottom: 3.5rem; z-index: 20;
   width: 42rem; max-width: calc(100% - 2 * var(--gutter));
   display: flex; align-items: center;
   padding: 1.75rem 2.5rem 2rem 1.75rem;
