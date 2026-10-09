@@ -526,7 +526,8 @@ html.pointer .peek:hover .ms { transform: scale(1.12); }
    legível a 3 m. Não rouba o foco nem bloqueia o controle; some sozinho após 4 s. */
 .mode-sheet {
   position: fixed; right: var(--gutter); bottom: 3.5rem; z-index: 20;
-  width: 42rem; max-width: calc(100% - 2 * var(--gutter));
+  /* largura acompanha o texto (fixed + right, sem left = encolhe até o conteúdo) */
+  max-width: calc(100% - 2 * var(--gutter));
   display: flex; align-items: center;
   padding: 1.75rem 2.5rem 2rem 1.75rem;
   border-radius: 1.75rem;
@@ -550,9 +551,9 @@ html.pointer .peek:hover .ms { transform: scale(1.12); }
   background: rgba(102, 178, 255, .16); color: var(--accent);
 }
 .mode-icon .ms { font-size: 3.25rem; }
-.mode-text { display: flex; flex-direction: column; min-width: 0; }
+.mode-text { display: flex; flex-direction: column; min-width: 0; white-space: nowrap; }
 .mode-title { font-family: var(--font-title); font-weight: 800; font-size: 2.25rem; line-height: 1.15; color: var(--text-title); }
-.mode-desc { margin-top: .5rem; font-size: 1.625rem; line-height: 1.35; color: var(--text-body); text-wrap: balance; }
+.mode-desc { margin-top: .5rem; font-size: 1.625rem; line-height: 1.35; color: var(--text-body); }
 .mode-desc b { color: var(--accent); font-weight: 600; }
 /* Contagem até sumir: barra fina na base que encolhe (só transform) */
 .mode-timer {
