@@ -688,14 +688,15 @@ html.unsupported .unsupported-screen {
 .unsupported-screen .us-icons span + span { margin-left: .75rem; }
 .unsupported-screen .us-icons .ms { font-size: 2.25rem; }
 .unsupported-screen h1 { margin: 0; font-family: var(--font-title); font-weight: 700; font-size: 1.875rem; line-height: 1.2; color: var(--accent); }
-.unsupported-screen p { margin: 1rem 0 0; font-size: 1.125rem; line-height: 1.5; }
+/* Título fica em 30 px; os textos sobem para quase o tamanho dele (24 px), legíveis com o celular afastado */
+.unsupported-screen p { margin: 1.25rem 0 0; font-size: 1.5rem; line-height: 1.45; }
 .unsupported-screen .us-url {
   margin-top: 1.5rem; padding: 1rem 1.25rem; border-radius: 1rem;
   background: linear-gradient(180deg, #1f2a36 0%, #161b21 100%);
-  font-size: 1.125rem; color: var(--text-title); word-break: break-all;
+  font-size: 1.5rem; color: var(--text-title); word-break: break-all;
 }
-.unsupported-screen .us-url small { display: block; margin-bottom: .25rem; font-size: .875rem; color: var(--text-meta); }
-.unsupported-screen .us-note { font-size: .9375rem; color: var(--text-meta); }
+.unsupported-screen .us-url small { display: block; margin-bottom: .375rem; font-size: 1.125rem; color: var(--text-meta); }
+.unsupported-screen .us-note { font-size: 1.25rem; color: var(--text-meta); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
