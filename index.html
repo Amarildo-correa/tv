@@ -507,6 +507,9 @@ html.pointer .feature:hover .cta-wrap { grid-template-rows: 1fr; opacity: 1; mar
 html.pointer .wx:hover { background-color: var(--surface-hover); }
 html.pointer .wx:hover .wx-title { color: var(--accent); text-decoration-line: underline; }
 html.pointer .wx:hover .wx-strip { margin-right: 0; -webkit-mask-image: none; mask-image: none; }
+/* Área fantasma sobre o peek da previsão: mantém o hover estável quando o peek recolhe
+   (sem ela o cursor saía do bloco, o hover caía, o peek voltava e piscava em loop) */
+html.pointer .wx::after { content: ''; position: absolute; top: 0; bottom: 0; left: 100%; width: 4.5rem; }
 html.pointer .wx:hover .wx-msg { margin-right: 0; }
 html.pointer .wx:hover .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 2rem; }
 
