@@ -1,0 +1,1552 @@
+<!doctype html>
+<html lang="pt-BR">
+<title>Read on TV</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@600&family=Raleway:wght@800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,foggy,gamepad,humidity_percentage,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,rainy,rainy_heavy,rainy_light,sports_soccer,theater_comedy,thermostat,thunderstorm,trending_up,umbrella,water_drop,wb_twilight,weather_snowy&display=block">
+<style>
+/* Layout: tela de TV 1920×1080 em rem (1rem = 16px em 1080p), margem de segurança de 5%, header sem fundo,
+   destaque em duas colunas (notícia + previsão do tempo) e rails que deslizam na vertical */
+:root {
+  --bg: #121212;
+  --surface: #141414;
+  --surface-focus: #2A2A2A;
+  --surface-card-focus: #1E1E1E;
+  --surface-hover: #11223A; /* azul-marinho do hover: contraste 7,1:1 com o azul de destaque e 16:1 com o branco */
+  --text-title: #FFFFFF;
+  --text-body: #EDEDED;
+  --text-meta: #B8B8B8;
+  --accent: #66B2FF;
+  --focus: #FFFFFF;
+  --on-focus: #000000;
+  --placeholder: #1F2C38;
+
+  --font-title: 'Raleway', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --size-headline: 3.5rem;
+  --size-card-title: 1.875rem;
+  --size-body: 1.75rem;
+  --size-meta: 1.5rem;
+
+  --gutter: 9rem;
+  --card-w: calc((120rem - 2 * var(--gutter) - 2 * var(--card-gap)) / 3);
+  --card-h: 16.75rem;
+  --card-pad: .625rem;
+  --card-gap: 2rem;
+
+  --ring: 4px;
+  --dur: 180ms;
+  --slide: 320ms cubic-bezier(.2, .8, .2, 1);
+  color-scheme: dark;
+}
+
+html { font-size: calc(100vw / 120); height: 100%; }
+/* Barra de rolagem nativa com trilho transparente (página no modo cursor e telas de leitura/previsão).
+   scrollbar-color vale nos navegadores novos; ::-webkit-scrollbar cobre os Chromium antigos das TVs. */
+html { scrollbar-color: rgba(255, 255, 255, .3) transparent; }
+::-webkit-scrollbar { width: 12px; height: 12px; background: transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .3); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, .45); }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(70rem 32rem at 100% 0%, rgba(102, 178, 255, .09), rgba(102, 178, 255, 0) 70%) no-repeat,
+    var(--bg);
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-weight: 600;
+  -webkit-font-smoothing: antialiased;
+}
+.ms {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  font-feature-settings: 'liga';
+  user-select: none;
+}
+.ms.fill { font-variation-settings: 'FILL' 1; }
+button { font: inherit; color: inherit; cursor: pointer; }
+
+.app {
+  height: 100%;
+  padding-top: 2.5rem; padding-bottom: 0;
+  padding-left: var(--gutter); padding-right: var(--gutter);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header (sem fundo) */
+.top { position: relative; z-index: 3; display: flex; flex-wrap: nowrap; align-items: center; min-height: 4.5rem; min-width: 0; flex: 0 0 auto; }
+.logo {
+  margin: 0;
+  font-family: var(--font-title);
+  font-weight: 800;
+  font-size: 2.25rem;
+  color: var(--text-title);
+  font-variant-numeric: lining-nums;
+  white-space: nowrap;
+}
+.sep { flex: 0 0 2px; height: 2.5rem; background: var(--surface-focus); }
+.sep.accent { flex-basis: 3px; background: var(--accent); }
+.nav { display: flex; align-items: center; }
+.clock { margin-left: auto; display: flex; align-items: baseline; white-space: nowrap; }
+.clock #date { font-size: var(--size-meta); color: var(--text-meta); }
+.clock .hh { font-family: var(--font-title); font-weight: 800; font-size: 2.5rem; color: var(--text-title); font-variant-numeric: tabular-nums lining-nums; }
+.weather { display: flex; align-items: center; white-space: nowrap; min-width: 0; }
+.weather .ms { font-size: 2.75rem; color: var(--accent); }
+.weather .temp { font-family: var(--font-title); font-weight: 800; font-size: 2.25rem; color: var(--text-title); font-variant-numeric: lining-nums; }
+.weather .lbl { font-size: var(--size-meta); color: var(--text-meta); max-width: 14rem; overflow: hidden; text-overflow: ellipsis; }
+
+.pill {
+  -webkit-appearance: none; appearance: none;
+  border: 0;
+  height: 3.5rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  display: inline-flex; align-items: center;
+  font-size: var(--size-meta);
+  line-height: 1;
+  white-space: nowrap;
+  background: transparent;
+  color: var(--text-title);
+  outline: none;
+  transition: transform var(--dur) ease, background-color var(--dur) ease, color var(--dur) ease;
+}
+.pill[aria-current="true"] { background: var(--surface-focus); }
+/* Tela cheia: botão só com ícone no fim da nav */
+.pill.fs { width: 3.5rem; padding: 0; justify-content: center; color: var(--accent); }
+.pill.fs .ms { font-size: 2rem; }
+html:not(.pointer) .pill:focus { background: var(--focus); color: var(--on-focus); transform: scale(1.06); }
+
+/* Área de linhas */
+.viewport { flex: 1 1 auto; min-height: 0; position: relative; z-index: 1; overflow: hidden; margin-left: calc(-1 * var(--gutter)); margin-right: calc(-1 * var(--gutter)); padding-left: var(--gutter); padding-right: var(--gutter); }
+.rows {
+  position: relative;
+  display: flex; flex-direction: column;
+  padding-top: 1rem; padding-bottom: 3rem;
+  transition: transform var(--slide);
+}
+
+/* Mídia */
+.media { position: relative; overflow: hidden; border-radius: 1rem; background: var(--placeholder); max-width: 100%; }
+.media .ph { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: grid; place-items: center; color: var(--accent); }
+.media .ph .ms { font-size: 4rem; }
+.media img { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Feedback de foco: só a imagem dá zoom, dentro da própria moldura; o card não muda de tamanho */
+.card .media img, .feature .media img { transform: scale(1); }
+/* A classe é posta pelo JS só quando o foco chega de outro elemento (não ao voltar para a aba/janela). */
+.card.zoom-fx .media img, .feature.zoom-fx .media img { animation: focus-zoom 500ms cubic-bezier(.25, .1, .25, 1) 80ms both; }
+@keyframes focus-zoom {
+  from { transform: scale(1); }
+  to   { transform: scale(1.35); }
+}
+
+/* CTA que aparece só com foco (expande sem deslocar o resto de forma brusca) */
+.cta-wrap { display: grid; grid-template-rows: 0fr; opacity: 0; margin-top: -1rem; transition: opacity var(--dur) ease; }
+.cta-wrap > div { min-height: 0; overflow: hidden; display: flex; padding: 4px; }
+.cta {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 4rem; padding: 0 3rem; border-radius: 999px;
+  background: var(--focus); color: var(--on-focus);
+  font-size: 1.875rem; line-height: 1; white-space: nowrap;
+}
+html:not(.pointer) .wx:focus .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 2rem; }
+
+/* Destaque: duas colunas */
+.hero { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); grid-gap: 2.5rem; gap: 2.5rem; height: 38rem; }
+
+/* Notícia em destaque — sem foco: brilho azul na borda esquerda e no canto inferior esquerdo;
+   com foco: fundo liso (--bg), anel branco afastado do card, sem divisória no kicker e CTA visível */
+.feature {
+  position: relative; height: 100%; min-width: 0;
+  border-radius: 1rem;
+  outline: .375rem solid transparent; outline-offset: .75rem;
+  --fb: 18, 18, 18;
+  transition: outline-color var(--dur) ease;
+  cursor: pointer;
+}
+html:not(.pointer) .feature:focus { outline-color: var(--focus); }
+.feature-clip {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: inherit; overflow: hidden;
+  background: rgb(var(--fb));
+}
+.feature-clip::before {
+  content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(32% 7% at 0% 100%, rgba(102, 178, 255, .22) 0%, rgba(102, 178, 255, 0) 100%),
+    linear-gradient(to right, rgba(102, 178, 255, .26) 0%, rgba(102, 178, 255, .09) 2.2%, rgba(102, 178, 255, 0) 5%);
+  transition: opacity var(--dur) ease;
+}
+html:not(.pointer) .feature:focus .feature-clip::before { opacity: 0; }
+.feature .media { position: absolute; top: 0; bottom: 0; right: 0; left: 42%; border-radius: 0; z-index: 1; }
+.feature .media::after {
+  content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to right, rgba(var(--fb), 1) 0%, rgba(var(--fb), .96) 4%, rgba(var(--fb), .86) 8%, rgba(var(--fb), .7) 12%, rgba(var(--fb), .5) 16%, rgba(var(--fb), .31) 20%, rgba(var(--fb), .16) 24%, rgba(var(--fb), .06) 28%, rgba(var(--fb), 0) 32%);
+}
+.feature-text {
+  position: relative; z-index: 2; height: 100%; width: calc(29rem + 7.5rem); max-width: 100%;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 3rem 3.75rem;
+}
+.kicker { display: flex; align-items: center; font-size: var(--size-meta); color: var(--accent); text-transform: uppercase; letter-spacing: .02em; }
+.kicker .rule { width: 3px; height: 2.25rem; background: var(--accent); transition: opacity var(--dur) ease; }
+html:not(.pointer) .feature:focus .kicker .rule { opacity: 0; }
+.headline {
+  margin: 0;
+  font-family: var(--font-title); font-weight: 800;
+  font-size: var(--size-headline); line-height: 1.15;
+  color: var(--text-title);
+  font-variant-numeric: lining-nums;
+  text-wrap: balance;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.feature .headline { margin-top: 1rem; max-width: 25.75rem; font-size: 1.875rem; line-height: 1.33; text-wrap: wrap; }
+.summary {
+  margin: 2.25rem 0 0; max-width: 28.5rem;
+  font-size: 1.4rem; line-height: 1.36; color: var(--text-body);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.feature .cta-wrap { margin: 0 0 0 calc(-1.375rem - 4px); }
+html:not(.pointer) .feature:focus .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 3.75rem; }
+.feature .cta { height: 3.875rem; padding: 0 2.75rem 0 2.25rem; font-size: 1.625rem; }
+.feature .cta .ms { font-size: 2.25rem; }
+
+/* Previsão do tempo */
+.wx {
+  --wx-pad: 2rem;
+  position: relative; height: 100%; min-width: 0;
+  display: flex; flex-direction: column;
+  padding: 1.75rem var(--wx-pad);
+  border-radius: 1.5rem;
+  background: transparent;
+  outline: var(--ring) solid transparent; outline-offset: 0;
+  transition: outline-color var(--dur) ease, background-color var(--dur) ease;
+  cursor: pointer;
+}
+html:not(.pointer) .wx:focus { outline-color: var(--focus); }
+.wx-head { display: flex; align-items: center; white-space: nowrap; min-width: 0; flex: 0 0 auto; }
+.wx-title { font-family: var(--font-title); font-weight: 800; font-size: 2rem; color: var(--text-title); }
+.wx-head .bar { flex: 0 0 3px; height: 2.25rem; background: var(--accent); }
+.wx-head .city { font-size: 1.75rem; color: var(--accent); overflow: hidden; text-overflow: ellipsis; }
+.wx-strip {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; overflow: hidden;
+  margin-right: calc(-1 * (var(--wx-pad) + 4.5rem));
+  /* Peek à direita some aos poucos (degradê suavizado até transparente, sem aresta) */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 5.5rem), rgba(0, 0, 0, .95) calc(100% - 4.8rem), rgba(0, 0, 0, .82) calc(100% - 4.1rem), rgba(0, 0, 0, .62) calc(100% - 3.45rem), rgba(0, 0, 0, .4) calc(100% - 2.75rem), rgba(0, 0, 0, .2) calc(100% - 2.05rem), rgba(0, 0, 0, .07) calc(100% - 1.4rem), rgba(0, 0, 0, .01) calc(100% - .7rem), transparent 100%);
+          mask-image: linear-gradient(to right, #000 calc(100% - 5.5rem), rgba(0, 0, 0, .95) calc(100% - 4.8rem), rgba(0, 0, 0, .82) calc(100% - 4.1rem), rgba(0, 0, 0, .62) calc(100% - 3.45rem), rgba(0, 0, 0, .4) calc(100% - 2.75rem), rgba(0, 0, 0, .2) calc(100% - 2.05rem), rgba(0, 0, 0, .07) calc(100% - 1.4rem), rgba(0, 0, 0, .01) calc(100% - .7rem), transparent 100%);
+  transition: margin-right var(--slide);
+}
+html:not(.pointer) .wx:focus .wx-strip { margin-right: 0; -webkit-mask-image: none; mask-image: none; }
+.wx .cta-wrap > div { justify-content: center; }
+
+.day {
+  /* largura do conteúdo da coluna da previsão: (102rem - 2.5rem) / 2.12 - 2 × padding */
+  flex: 0 0 calc(((120rem - 2 * var(--gutter) - 2.5rem) / 2.12 - 2 * var(--wx-pad) - 3rem) / 3);
+  height: 100%; min-height: 0;
+  border-radius: 1.25rem;
+  padding: 1.5rem 1rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-evenly;
+  text-align: center;
+  background: linear-gradient(180deg, #1f2a36 0%, #161b21 100%);
+  overflow: hidden;
+}
+.day.today { background: linear-gradient(180deg, #2F4863 0%, #1F2C38 100%); }
+.day .d { font-size: 1.875rem; color: var(--text-title); }
+.day > .ms { font-size: 5rem; color: var(--text-body); }
+.day.today > .ms { color: var(--text-title); }
+.day .t { font-family: var(--font-title); font-weight: 800; font-size: 4.5rem; line-height: 1; color: var(--text-title); font-variant-numeric: lining-nums; }
+.day .c {
+  font-size: var(--size-meta); line-height: 1.2; color: var(--text-body);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.day .r { font-size: var(--size-meta); color: var(--text-meta); font-variant-numeric: tabular-nums; }
+.day .r b { color: var(--text-title); font-weight: 600; }
+.day.skel .d, .day.skel .t { color: var(--text-meta); }
+.wx-msg { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: var(--size-body); color: var(--text-meta); margin-right: calc(var(--wx-pad) + 4.5rem); }
+html:not(.pointer) .wx:focus .wx-msg { margin-right: 0; }
+.wx-msg .ms { font-size: 4rem; color: var(--accent); }
+
+/* Rails (a .rail-wrap ocupa a largura total da tela; as setas dos peeks ficam fora da máscara do rail) */
+.rail-wrap { position: relative; margin-left: calc(-1 * var(--gutter)); margin-right: calc(-1 * var(--gutter)); }
+/* Escurece os peeks nas laterais (substitui o mask-image, que custava uma camada por rail) */
+.rail-wrap::before, .rail-wrap::after {
+  content: ''; position: absolute; top: -.75rem; bottom: -.75rem; z-index: 2; pointer-events: none;
+  width: calc(var(--gutter) - .5rem);
+}
+.rail-wrap::before { left: 0; background: linear-gradient(to right, rgba(18, 18, 18, .7), rgba(18, 18, 18, 0)); }
+.rail-wrap::after { right: 0; background: linear-gradient(to left, rgba(18, 18, 18, .7), rgba(18, 18, 18, 0)); }
+.row { display: flex; flex-direction: column; min-width: 0; }
+.row-head { display: flex; align-items: baseline; justify-content: space-between; }
+.row-head h2 { margin: 0; font-family: var(--font-title); font-weight: 800; font-size: 2rem; color: var(--text-title); font-variant-numeric: lining-nums; }
+.rail {
+  position: relative;
+  overflow: hidden;
+  padding: .75rem var(--gutter); margin: -.75rem 0;
+}
+.frame {
+  position: absolute; top: .75rem; left: var(--gutter); z-index: 0;
+  width: var(--card-w); height: var(--card-h);
+  border-radius: 1.25rem;
+  outline: var(--ring) solid var(--focus); outline-offset: 0;
+  opacity: 0;
+  transition: opacity var(--dur) ease, transform var(--slide);
+  pointer-events: none;
+}
+.rail.is-active .frame { opacity: 1; }
+.track {
+  position: relative; z-index: 1;
+  display: flex;
+  transition: transform var(--slide);
+  will-change: transform;
+}
+.card {
+  -webkit-appearance: none; appearance: none; border: 0; background: transparent; text-align: left;
+  flex: 0 0 var(--card-w);
+  height: var(--card-h);
+  padding: var(--card-pad);
+  border-radius: 1.25rem;
+  display: grid; grid-template-columns: calc(var(--card-h) - 2 * var(--card-pad)) minmax(0, 1fr); grid-gap: 1.25rem; gap: 1.25rem;
+  outline: none;
+  transition: background-color var(--dur) ease;
+}
+.card .media { width: 100%; height: calc(var(--card-h) - 2 * var(--card-pad)); border-radius: .75rem; }
+.card .txt { display: flex; flex-direction: column; min-width: 0; }
+.card .cat, .card .time { line-height: 1.2; }
+.card .cat { font-size: var(--size-meta); color: var(--accent); text-transform: uppercase; letter-spacing: .06em; }
+.card h3 {
+  margin: 0;
+  font-family: var(--font-title); font-weight: 800;
+  font-size: var(--size-card-title); line-height: 1.15;
+  color: var(--text-title);
+  font-variant-numeric: lining-nums;
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card.is-peek-left h3 { text-align: right; }
+.card.is-peek-left .cat { text-align: right; padding-right: 1.8rem; }
+.card .time { margin-top: auto; font-size: var(--size-meta); color: var(--text-meta); }
+
+/* Telas sobrepostas (leitura e previsão completa) */
+.overlay {
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 10;
+  background: var(--bg);
+  padding-top: 2.5rem; padding-bottom: 2.5rem; padding-left: var(--gutter); padding-right: var(--gutter);
+  overflow-y: auto;
+}
+.back {
+  -webkit-appearance: none; appearance: none; height: 3.5rem; padding: 0 1.25rem; border-radius: 999px;
+  display: inline-flex; align-items: center;
+  font-size: var(--size-meta); line-height: 1;
+  background: transparent; color: var(--text-title); border: 0; outline: none;
+  transition: transform var(--dur) ease, background-color var(--dur) ease, color var(--dur) ease;
+}
+.back .ms { font-size: 1.75rem; }
+html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus); transform: scale(1.06); }
+
+.reader { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); grid-gap: 4rem; gap: 4rem; align-content: start; }
+.reader-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.reader-text .kicker { text-transform: none; letter-spacing: 0; }
+.reader-text .headline { -webkit-line-clamp: unset; display: block; }
+.meta { display: flex; align-items: center; font-size: var(--size-meta); color: var(--text-meta); }
+.reader-body { display: flex; flex-direction: column; max-width: 52rem; }
+.reader-body p { margin: 0; font-size: var(--size-body); line-height: 1.6; color: var(--text-body); }
+.reader .media { width: 100%; height: 0; padding-top: 75%; margin-top: 5.5rem; }
+
+/* Previsão completa */
+.fc { display: flex; flex-direction: column; }
+.fc-top { display: flex; align-items: center; white-space: nowrap; }
+.fc-top .fc-title { margin: 0 0 0 1rem; font-family: var(--font-title); font-weight: 800; font-size: 2.5rem; color: var(--text-title); }
+.fc-top .bar { flex: 0 0 3px; height: 2.5rem; background: var(--accent); }
+.fc-top .city { font-size: 2rem; color: var(--accent); }
+.fc-top .upd { margin-left: auto; font-size: var(--size-meta); color: var(--text-meta); }
+.fc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); grid-gap: 3rem; gap: 3rem; align-items: start; }
+.fc h3 { margin: 0 0 1.25rem; font-family: var(--font-title); font-weight: 800; font-size: 2rem; color: var(--text-title); }
+.fc-now { display: flex; flex-direction: column; min-width: 0; }
+.now-card {
+  border-radius: 1.5rem; padding: 2.25rem 2.5rem;
+  background: linear-gradient(160deg, #2B4259 0%, #1A222A 100%);
+  display: flex; flex-direction: column;
+}
+.now-main { display: flex; align-items: center; }
+.now-main > .ms { font-size: 8rem; color: var(--text-title); }
+.now-temp { font-family: var(--font-title); font-weight: 800; font-size: 7rem; line-height: 1; color: var(--text-title); font-variant-numeric: lining-nums; }
+.now-desc { display: flex; flex-direction: column; margin-left: .5rem; }
+.now-desc strong { font-size: 2.25rem; color: var(--text-title); font-weight: 600; }
+.now-desc span { font-size: var(--size-meta); color: var(--text-body); }
+.now-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-gap: 1.5rem; gap: 1.5rem; }
+.det { display: flex; flex-direction: column; }
+.det .k { display: flex; align-items: center; font-size: var(--size-meta); color: var(--text-body); }
+.det .k .ms { font-size: 1.75rem; color: var(--accent); }
+.det .v { font-size: 2rem; color: var(--text-title); font-variant-numeric: tabular-nums; }
+.hours { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-gap: 1rem; gap: 1rem; }
+.hour { display: flex; flex-direction: column; align-items: center; padding: 1.25rem .5rem; border-radius: 1.25rem; }
+.hour .h { font-size: var(--size-meta); color: var(--text-meta); }
+.hour > .ms { font-size: 3rem; color: var(--text-body); }
+.hour .t { font-family: var(--font-title); font-weight: 800; font-size: 2.25rem; color: var(--text-title); font-variant-numeric: lining-nums; }
+.hour .p { display: flex; align-items: center; font-size: var(--size-meta); color: var(--accent); }
+.hour .p .ms { font-size: 1.5rem; }
+.week { display: flex; flex-direction: column; }
+.wrow {
+  display: grid; grid-template-columns: 14rem 3.5rem 6rem 4rem minmax(0, 1fr) 4rem; align-items: center; grid-gap: 1.25rem; gap: 1.25rem;
+  padding: 1rem 1.5rem; border-radius: 1.25rem;
+}
+.wrow .dd { display: flex; flex-direction: column; min-width: 0; }
+.wrow .dd b { font-size: 1.875rem; color: var(--text-title); font-weight: 600; }
+.wrow .dd span { font-size: var(--size-meta); color: var(--text-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wrow > .ms { font-size: 3rem; color: var(--text-body); }
+.wrow .p { display: flex; align-items: center; font-size: var(--size-meta); color: var(--accent); font-variant-numeric: tabular-nums; }
+.wrow .p .ms { font-size: 1.5rem; }
+.wrow .mn, .wrow .mx { font-size: 1.875rem; font-variant-numeric: tabular-nums; text-align: right; }
+.wrow .mn { color: var(--text-meta); }
+.wrow .mx { color: var(--text-title); text-align: left; }
+.range { position: relative; height: .625rem; border-radius: 999px; background: var(--surface-focus); }
+.range i { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: linear-gradient(90deg, #7cc4ff, var(--accent) 40%, #ffb366); }
+.fc-msg { display: flex; align-items: center; font-size: var(--size-body); color: var(--text-meta); }
+.fc-msg .ms { font-size: 3rem; color: var(--accent); }
+
+
+/* Espaçamento sem `gap` em flexbox (que só existe a partir do Chromium 84, ausente em muitas Smart TVs) */
+.top > * + * { margin-left: 1rem; }
+.nav > * + * { margin-left: .5rem; }
+.nav > .fs { margin-left: 1rem; }
+.clock > * + * { margin-left: 1.25rem; }
+.weather > * + * { margin-left: .75rem; }
+.kicker > * + * { margin-left: .75rem; }
+.wx-head > * + * { margin-left: 1rem; }
+.wx-strip > * + * { margin-left: 1.5rem; }
+.row-head > * + * { margin-left: 2rem; }
+.track > * + * { margin-left: var(--card-gap); }
+.meta > * + * { margin-left: 2rem; }
+.fc-top > * + * { margin-left: 1.25rem; }
+.now-main > * + * { margin-left: 2rem; }
+.app > * + * { margin-top: 1.5rem; }
+.rows > * + * { margin-top: 3rem; }
+.day > * + * { margin-top: .5rem; }
+.row > * + * { margin-top: 1rem; }
+.card .txt > * + * { margin-top: .5rem; }
+.reader-text > * + * { margin-top: 1.5rem; }
+.reader-body > * + * { margin-top: 1.25rem; }
+.fc > * + * { margin-top: 2.5rem; }
+.fc-now > * + * { margin-top: 2.5rem; }
+.now-card > * + * { margin-top: 2rem; }
+.now-desc > * + * { margin-top: .5rem; }
+.det > * + * { margin-top: .375rem; }
+.hour > * + * { margin-top: .625rem; }
+.week > * + * { margin-top: .5rem; }
+.wrow .dd > * + * { margin-top: .25rem; }
+.feature .cta > .ms { margin-right: 1.25rem; }
+.back > .ms { margin-right: .625rem; }
+.det .k > .ms { margin-right: .5rem; }
+.hour .p > .ms { margin-right: .25rem; }
+.wrow .p > .ms { margin-right: .25rem; }
+.fc-msg > .ms { margin-right: 1rem; }
+.wx-msg > .ms { margin-bottom: 1rem; }
+.wx > .wx-strip { margin-top: 1.5rem; }
+.wx > .cta-wrap { margin-top: .5rem; }
+.top > .clock { margin-left: auto; }
+.card .txt > .time { margin-top: auto; }
+.fc-top > .fc-title { margin-left: 2.25rem; }
+.fc-top > .upd { margin-left: auto; }
+.now-main > .now-desc { margin-left: 2.5rem; }
+
+/* ===== Modo cursor (Silk / mouse / toque) =====
+   O JS põe .pointer no <html> quando o ponteiro se mexe e tira ao usar as setas do controle.
+   Sem cursor a página continua igual (rails deslizam por transform). Com cursor a página rola de verdade,
+   para o Silk conseguir descer pelas linhas levando o cursor até a borda da tela. */
+.card h3, .headline, .wx-title { transition: color var(--dur) ease; text-decoration-thickness: .125rem; text-underline-offset: .3rem; }
+html.pointer body { height: auto; overflow-x: hidden; overflow-y: auto; }
+html.pointer .app { height: auto; min-height: 100%; padding-top: 0; padding-bottom: 0; }
+html.pointer .top {
+  position: -webkit-sticky; position: sticky; top: 0; top: env(safe-area-inset-top, 0px);
+  margin-left: calc(-1 * var(--gutter)); margin-right: calc(-1 * var(--gutter)); padding: 2.5rem var(--gutter) 0; min-height: 7rem;
+  transition: background-color var(--dur) ease;
+}
+html.pointer .top::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 1.25rem; pointer-events: none;
+  background: linear-gradient(to bottom, var(--bg), rgba(18, 18, 18, 0));
+  opacity: 0; transition: opacity var(--dur) ease;
+}
+html.pointer .top.stuck { background-color: var(--bg); }
+html.pointer .top.stuck::after { opacity: 1; }
+html.pointer .viewport { overflow: visible; }
+html.pointer .rows { transform: none !important; }
+html.pointer .frame { opacity: 0 !important; }
+html.pointer .overlay { position: absolute; top: 0; left: 0; right: 0; bottom: auto; min-height: 100%; overflow: visible; }
+html.pointer body.has-overlay .app { display: none; }
+.no-anim, .no-anim * { transition: none !important; }
+
+/* Hover: mesmas animações do foco, sem anel/borda */
+html.pointer .pill:hover { color: var(--accent); transform: scale(1.06); }
+html.pointer .back:hover { color: var(--accent); transform: scale(1.06); }
+
+html.pointer .card:hover { background-color: var(--surface-hover); }
+html.pointer .card:hover h3 { color: var(--accent); text-decoration-line: underline; }
+html.pointer .card:hover .media img,
+html.pointer .feature:hover .media img { animation: focus-zoom 500ms cubic-bezier(.25, .1, .25, 1) 80ms both; }
+
+html.pointer .feature:hover .feature-clip::before { opacity: 0; }
+html.pointer .feature:hover .kicker .rule { opacity: 0; }
+html.pointer .feature:hover .headline { color: var(--accent); text-decoration-line: underline; }
+html.pointer .feature:hover .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 3.75rem; }
+
+html.pointer .wx:hover { background-color: var(--surface-hover); }
+html.pointer .wx:hover .wx-title { color: var(--accent); text-decoration-line: underline; }
+html.pointer .wx:hover .wx-strip { margin-right: 0; -webkit-mask-image: none; mask-image: none; }
+/* Área fantasma sobre o peek da previsão: mantém o hover estável quando o peek recolhe
+   (sem ela o cursor saía do bloco, o hover caía, o peek voltava e piscava em loop) */
+html.pointer .wx::after { content: ''; position: absolute; top: 0; bottom: 0; left: 100%; width: 4.5rem; }
+html.pointer .wx:hover .wx-msg { margin-right: 0; }
+html.pointer .wx:hover .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 2rem; }
+
+/* Setas dos peeks: só existem no modo cursor e só aparecem com o cursor sobre o peek */
+.peek {
+  position: absolute; top: 0; bottom: 0; z-index: 3;
+  width: var(--gutter);
+  display: none; align-items: center; justify-content: center;
+  -webkit-appearance: none; appearance: none; border: 0; margin: 0; padding: 0;
+  color: var(--accent); outline: none;
+  opacity: 0;
+  transition: opacity var(--dur) ease;
+}
+.peek.prev { left: 0; background: linear-gradient(to right, rgba(18, 18, 18, .96) 0%, rgba(18, 18, 18, .82) 45%, rgba(18, 18, 18, 0) 100%); }
+.peek.next { right: 0; background: linear-gradient(to left, rgba(18, 18, 18, .96) 0%, rgba(18, 18, 18, .82) 45%, rgba(18, 18, 18, 0) 100%); }
+.peek .ms { font-size: 5.5rem; transition: transform var(--dur) ease; }
+html.pointer .peek:not([disabled]) { display: flex; }
+html.pointer .peek:hover { opacity: 1; }
+html.pointer .peek:hover .ms { transform: scale(1.12); }
+
+
+/* ===== Aviso de troca de modo (10-foot UI) =====
+   Painel flutuante no canto inferior direito da área segura: ícone grande, título curto e uma linha de ajuda,
+   legível a 3 m. Não rouba o foco nem bloqueia o controle; some sozinho após 4 s. */
+.mode-sheet {
+  position: fixed; right: var(--gutter); bottom: 3.5rem; z-index: 20;
+  /* largura acompanha o texto (fixed + right, sem left = encolhe até o conteúdo) */
+  max-width: calc(100% - 2 * var(--gutter));
+  display: flex; align-items: center;
+  padding: 1.75rem 2.5rem 2rem 1.75rem;
+  border-radius: 1.75rem;
+  background: linear-gradient(180deg, #1f2a36 0%, #161b21 100%); /* mesmo fundo dos cartões .day */
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(255, 255, 255, .07);
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0; visibility: hidden;
+  -webkit-transform: translate(3rem, 0); transform: translate(3rem, 0);
+  transition: opacity 220ms ease, transform var(--slide), visibility 0s linear 320ms;
+}
+.mode-sheet.show {
+  opacity: 1; visibility: visible;
+  -webkit-transform: translate(0, 0); transform: translate(0, 0);
+  transition: opacity 220ms ease, transform var(--slide), visibility 0s;
+}
+.mode-icon {
+  flex: 0 0 5.5rem; height: 5.5rem; margin-right: 1.75rem;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(102, 178, 255, .16); color: var(--accent);
+}
+.mode-icon .ms { font-size: 3.25rem; }
+.mode-text { display: flex; flex-direction: column; min-width: 0; white-space: nowrap; }
+.mode-title { font-family: var(--font-title); font-weight: 800; font-size: 2.25rem; line-height: 1.15; color: var(--text-title); }
+.mode-desc { margin-top: .5rem; font-size: 1.625rem; line-height: 1.35; color: var(--text-body); }
+.mode-desc b { color: var(--accent); font-weight: 600; }
+/* Contagem até sumir: barra fina na base que encolhe (só transform) */
+.mode-timer {
+  position: absolute; left: 0; right: 0; bottom: 0; height: .3rem;
+  background: var(--accent); opacity: .75;
+  -webkit-transform-origin: left center; transform-origin: left center;
+  -webkit-transform: scaleX(0); transform: scaleX(0);
+}
+.mode-sheet.show .mode-timer { -webkit-animation: mode-timer 4000ms linear both; animation: mode-timer 4000ms linear both; }
+@-webkit-keyframes mode-timer { from { -webkit-transform: scaleX(1); } to { -webkit-transform: scaleX(0); } }
+@keyframes mode-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* Navegação por controle/teclado: esconde o ponteiro do mouse */
+html:not(.pointer), html:not(.pointer) * { cursor: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  html:not(.pointer) .pill:focus, html:not(.pointer) .back:focus { transform: none; }
+  .zoom-fx .media img { animation: none !important; }
+  .mode-sheet, .mode-sheet.show { -webkit-transform: none; transform: none; }
+  .mode-timer { display: none; }
+  html.pointer .pill:hover, html.pointer .back:hover, html.pointer .peek:hover .ms { transform: none; }
+  html.pointer .card:hover .media img, html.pointer .feature:hover .media img { animation: none !important; }
+}
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <h1 class="logo">Read on TV</h1>
+    <span class="sep" aria-hidden="true"></span>
+    <nav class="nav" id="nav" aria-label="Editorias"></nav>
+    <div class="clock">
+      <span id="date">—</span>
+      <span class="hh" id="time">--:--</span>
+    </div>
+    <span class="sep accent" aria-hidden="true"></span>
+    <div class="weather" id="weather" aria-label="Tempo agora em Novo Hamburgo">
+      <span class="ms" aria-hidden="true">partly_cloudy_day</span>
+      <span class="temp">--°</span>
+      <span class="lbl">Carregando</span>
+    </div>
+  </header>
+
+  <div class="viewport" id="viewport">
+    <main class="rows" id="rows"></main>
+  </div>
+</div>
+
+<div class="mode-sheet" id="modeSheet" role="status" aria-live="polite">
+  <div class="mode-icon"><span class="ms fill" aria-hidden="true" id="modeIcon">gamepad</span></div>
+  <div class="mode-text">
+    <span class="mode-title" id="modeTitle"></span>
+    <span class="mode-desc" id="modeDesc"></span>
+  </div>
+  <i class="mode-timer" aria-hidden="true"></i>
+</div>
+
+<div class="overlay reader" id="reader" role="dialog" aria-modal="true" aria-labelledby="readerTitle" hidden>
+  <div class="reader-text">
+    <button class="back" id="readerBack" type="button">
+      <span class="ms" aria-hidden="true">arrow_back</span>
+      Voltar
+    </button>
+    <div class="kicker" id="readerKicker"></div>
+    <h2 class="headline" id="readerTitle"></h2>
+    <div class="meta" id="readerMeta"></div>
+    <div class="reader-body" id="readerBody"></div>
+  </div>
+  <div id="readerMedia"></div>
+</div>
+
+<div class="overlay fc" id="forecast" role="dialog" aria-modal="true" aria-labelledby="fcTitle" hidden>
+  <div class="fc-top">
+    <button class="back" id="fcBack" type="button">
+      <span class="ms" aria-hidden="true">arrow_back</span>
+      Voltar
+    </button>
+    <h2 class="fc-title" id="fcTitle">Previsão do tempo</h2>
+    <span class="bar" aria-hidden="true"></span>
+    <span class="city">Novo Hamburgo, RS</span>
+    <span class="upd" id="fcUpd"></span>
+  </div>
+  <div id="fcBody"></div>
+</div>
+
+<script>
+(function () {
+  var CATS = {
+    Cidade:   'location_city',
+    Economia: 'trending_up',
+    Esportes: 'sports_soccer',
+    Cultura:  'theater_comedy'
+  };
+
+  /* Notícias fictícias de Novo Hamburgo. mins = minutos desde a publicação */
+  var STORIES = [
+    { id: 1, cat: 'Cidade', live: true, mins: 12,
+      title: 'Ponte sobre o Arroio Luiz Rau é liberada e muda o trânsito no Centro',
+      body: [
+        'A ponte sobre o Arroio Luiz Rau foi liberada no fim da tarde desta quinta-feira, depois de quatro meses de obras de reforço da estrutura.',
+        'Com a liberação, a Avenida Pedro Adams Filho volta a ter mão dupla no trecho entre a Rua Bento Gonçalves e a Rua General Osório. Agentes de trânsito acompanham o fluxo até o fim de semana.',
+        'As linhas de ônibus que usavam desvio pela Rua Lima e Silva retomam o trajeto original a partir das 18h.'
+      ] },
+    { id: 2, cat: 'Economia', mins: 35,
+      title: 'Polo calçadista projeta alta de 8% nas exportações até dezembro',
+      body: [
+        'As indústrias de calçados do Vale dos Sinos esperam fechar o ano com exportações 8% maiores que em 2025, segundo levantamento da associação do setor.',
+        'Os pedidos para a coleção de inverno do hemisfério norte puxam o resultado. Estados Unidos, França e Argentina concentram a maior parte das encomendas.'
+      ] },
+    { id: 3, cat: 'Esportes', mins: 58,
+      title: 'Noia vence no Estádio do Vale e avança à semifinal da Copa FGF',
+      body: [
+        'O Novo Hamburgo venceu por 2 a 1 na noite de quarta-feira, no Estádio do Vale, e garantiu vaga na semifinal da Copa FGF.',
+        'O gol da classificação saiu aos 47 minutos do segundo tempo. O jogo de ida da semifinal está marcado para domingo, às 16h, fora de casa.'
+      ] },
+    { id: 4, cat: 'Cultura', mins: 70,
+      title: 'Parcão recebe festival gratuito de música neste fim de semana',
+      body: [
+        'O Parque Floresta Imperial, o Parcão, recebe neste sábado e domingo um festival gratuito com doze bandas da região metropolitana.',
+        'Os shows vão das 14h às 21h nos dois dias, com área de food trucks e espaço para crianças.'
+      ] },
+    { id: 5, cat: 'Economia', mins: 95,
+      title: 'Comércio do Centro espera vender 15% mais no Dia das Crianças',
+      body: [
+        'Os lojistas do Centro esperam vender 15% a mais que no ano passado na semana do Dia das Crianças.',
+        'As lojas do calçadão funcionam das 9h às 20h até domingo, véspera da data.'
+      ] },
+    { id: 6, cat: 'Cidade', mins: 120,
+      title: 'Hamburgo Velho ganha roteiro noturno pelas casas enxaimel',
+      body: [
+        'O bairro Hamburgo Velho ganhou um roteiro noturno guiado por oito casas em estilo enxaimel construídas por imigrantes alemães no século 19.',
+        'O passeio dura 90 minutos e sai da Fundação Scheffel às sextas e aos sábados, às 19h. As inscrições são gratuitas.'
+      ] },
+    { id: 7, cat: 'Esportes', mins: 150,
+      title: 'Ginásio da Feevale sedia etapa estadual de vôlei sub-17',
+      body: [
+        'O ginásio do campus II da Feevale recebe de sexta a domingo a etapa estadual do campeonato de vôlei sub-17.',
+        'Dezesseis equipes disputam vaga na fase nacional. A entrada é gratuita.'
+      ] },
+    { id: 8, cat: 'Cultura', mins: 190,
+      title: 'Museu Nacional do Calçado abre mostra sobre 100 anos de design',
+      body: [
+        'O Museu Nacional do Calçado inaugura nesta sexta-feira uma exposição com 300 pares que contam um século de design no Vale dos Sinos.',
+        'A visitação vai até março, de terça a domingo, com entrada gratuita.'
+      ] },
+    { id: 9, cat: 'Cidade', mins: 240,
+      title: 'Vacinação contra a gripe é ampliada em 12 unidades de saúde',
+      body: [
+        'A Secretaria de Saúde ampliou a vacinação contra a gripe para 12 unidades básicas de saúde.',
+        'Até o fim de outubro, quatro delas funcionam também das 17h às 21h. Basta levar documento com foto.'
+      ] },
+    { id: 10, cat: 'Economia', mins: 280,
+      title: 'Feira de inovação reúne 40 startups do setor calçadista',
+      body: [
+        'Quarenta startups apresentam soluções para a indústria calçadista no Feevale Techpark.',
+        'Entre os destaques estão solados feitos de resíduos de couro e um aplicativo que mede os pés pela câmera do celular.'
+      ] },
+    { id: 11, cat: 'Cidade', mins: 320,
+      title: 'Prefeitura abre 400 vagas em escolas de educação infantil',
+      body: [
+        'A prefeitura abriu 400 novas vagas em escolas municipais de educação infantil para o ano letivo de 2027.',
+        'As inscrições vão até 30 de outubro e podem ser feitas nas próprias escolas.'
+      ] },
+    { id: 12, cat: 'Cidade', mins: 380,
+      title: 'Nova ciclovia liga o bairro Canudos ao Centro em 4,2 km',
+      body: [
+        'A nova ciclovia entre o bairro Canudos e o Centro foi entregue nesta quinta-feira, com 4,2 km de extensão.',
+        'O trajeto tem iluminação própria e três pontos de travessia com semáforo.'
+      ] },
+    { id: 13, cat: 'Economia', mins: 420,
+      title: 'Feirão de empregos oferece 1.200 vagas na Fenac no sábado',
+      body: [
+        'O feirão de empregos na Fenac oferece 1.200 vagas neste sábado, das 9h às 17h.',
+        'Há oportunidades na indústria calçadista, no comércio e em serviços. É preciso levar documento e carteira de trabalho.'
+      ] },
+    { id: 14, cat: 'Economia', mins: 480,
+      title: 'Aluguel sobe 6% em um ano em Novo Hamburgo',
+      body: [
+        'O valor médio do aluguel residencial subiu 6% nos últimos 12 meses em Novo Hamburgo, segundo levantamento de imobiliárias da cidade.',
+        'Os bairros com maior alta foram Hamburgo Velho e Rio Branco.'
+      ] },
+    { id: 15, cat: 'Esportes', mins: 540,
+      title: 'Corrida de rua reúne 3 mil atletas no domingo',
+      body: [
+        'A corrida de rua de Novo Hamburgo reúne 3 mil inscritos neste domingo, com largada às 7h na Avenida Nações Unidas.',
+        'Há percursos de 5 km e 10 km. Algumas ruas do Centro ficam bloqueadas até as 11h.'
+      ] },
+    { id: 16, cat: 'Esportes', mins: 600,
+      title: 'Escolinha do Noia abre peneira para meninas de 10 a 15 anos',
+      body: [
+        'A escolinha do Novo Hamburgo abre peneira para meninas de 10 a 15 anos no próximo sábado.',
+        'As inscrições são gratuitas e podem ser feitas no Estádio do Vale.'
+      ] },
+    { id: 17, cat: 'Esportes', mins: 660,
+      title: 'Nadadora hamburguense conquista ouro no Brasileiro',
+      body: [
+        'Uma nadadora de Novo Hamburgo conquistou a medalha de ouro nos 200 metros livre do Campeonato Brasileiro.',
+        'Ela treina desde os 8 anos na piscina pública do bairro Rondônia.'
+      ] },
+    { id: 18, cat: 'Cultura', mins: 720,
+      title: 'Biblioteca Pública passa a abrir também aos sábados',
+      body: [
+        'A Biblioteca Pública Municipal passa a abrir aos sábados, das 9h às 13h, a partir deste fim de semana.',
+        'O acervo tem mais de 40 mil títulos e o cadastro é gratuito.'
+      ] },
+    { id: 19, cat: 'Cultura', mins: 800,
+      title: 'Teatro Feevale estreia musical com elenco da cidade',
+      body: [
+        'O Teatro Feevale estreia nesta sexta-feira um musical com elenco formado por artistas de Novo Hamburgo.',
+        'As sessões vão até o fim de outubro, de quinta a domingo.'
+      ] },
+    { id: 20, cat: 'Cultura', mins: 900,
+      title: 'Feira do Livro anuncia a escritora homenageada de 2026',
+      body: [
+        'A Feira do Livro de Novo Hamburgo anunciou a escritora homenageada da edição de 2026, que acontece em novembro.',
+        'A programação terá 120 sessões de autógrafos e atividades para escolas.'
+      ] }
+  ];
+
+  var SECTIONS = [
+    { key: 'Início', title: 'Últimas notícias de Novo Hamburgo' },
+    { key: 'Cidade', title: 'Cidade' },
+    { key: 'Economia', title: 'Economia' },
+    { key: 'Esportes', title: 'Esportes' },
+    { key: 'Cultura', title: 'Cultura' }
+  ];
+
+  /* Fotos ilustrativas do Wikimedia Commons (licenças Creative Commons), uma por notícia */
+  var IMG = {
+"1": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Ostritz_Krzewina_Zgorzelecka_Grunau_Bahnhof_Neisse_Bruecke_Grenze.JPG/960px-Ostritz_Krzewina_Zgorzelecka_Grunau_Bahnhof_Neisse_Bruecke_Grenze.JPG",
+"2": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Shoes_and_Bags.jpg/960px-Shoes_and_Bags.jpg",
+"3": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Football_stadium_in_Tren%C4%8D%C3%ADn%2C_Slovakia.jpg/960px-Football_stadium_in_Tren%C4%8D%C3%ADn%2C_Slovakia.jpg",
+"4": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Beach-Please-2022-main-stage-green-lights.jpg/960px-Beach-Please-2022-main-stage-green-lights.jpg",
+"5": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Hereford%2C_High_Street_pedestrian_shopping_area.jpg/960px-Hereford%2C_High_Street_pedestrian_shopping_area.jpg",
+"6": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Half_timbered_houses%2C_Miltenberg_im_Odenwald.JPG/960px-Half_timbered_houses%2C_Miltenberg_im_Odenwald.JPG",
+"7": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Atlas_Arena_during_volleyball_match_2.jpg/960px-Atlas_Arena_during_volleyball_match_2.jpg",
+"8": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Huron_moccasins%2C_c._1880_-_Bata_Shoe_Museum_-_DSC00641.JPG/960px-Huron_moccasins%2C_c._1880_-_Bata_Shoe_Museum_-_DSC00641.JPG",
+"9": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Flu_Vaccine_in_Vietnam_%2836813879320%29.jpg/960px-Flu_Vaccine_in_Vietnam_%2836813879320%29.jpg",
+"10": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/MESAP_2011._-_%C5%A1tandovi_%28ju%C5%BEni_niz%29.jpg/960px-MESAP_2011._-_%C5%A1tandovi_%28ju%C5%BEni_niz%29.jpg",
+"11": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/A_classroom_of_students_%287138907393%29.jpg/960px-A_classroom_of_students_%287138907393%29.jpg",
+"12": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Linwood_bike_lanes.JPG/960px-Linwood_bike_lanes.JPG",
+"13": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Job_Fair_2015.jpg/960px-Job_Fair_2015.jpg",
+"14": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Apartment_buildings_at_Praia_da_Rocha%2C_Portim%C3%A3o.jpg/960px-Apartment_buildings_at_Praia_da_Rocha%2C_Portim%C3%A3o.jpg",
+"15": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Dublin_Marathon_2009_%284046960306_cut%29.jpg/960px-Dublin_Marathon_2009_%284046960306_cut%29.jpg",
+"16": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Young_girl_practices_her_soccer_skills%2C_Khayelitsha%2C_Cape_Town.jpg/960px-Young_girl_practices_her_soccer_skills%2C_Khayelitsha%2C_Cape_Town.jpg",
+"17": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Swimming_Pool_lanes_and_starting_blocks_at_AIS.jpg/960px-Swimming_Pool_lanes_and_starting_blocks_at_AIS.jpg",
+"18": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Westmount_Public_Library_by_Rodrigo_Tetsuo_Argenton_%2803%29.jpg/960px-Westmount_Public_Library_by_Rodrigo_Tetsuo_Argenton_%2803%29.jpg",
+"19": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Stage_Apollo_Theater_Stuttgart_2014.jpg/960px-Stage_Apollo_Theater_Stuttgart_2014.jpg",
+"20": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Tatar-book-publishers-3.jpg/960px-Tatar-book-publishers-3.jpg"
+  };
+
+  var root = document.documentElement;
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var app = document.getElementById('app');
+  var navEl = document.getElementById('nav');
+  var rowsEl = document.getElementById('rows');
+  var viewport = document.getElementById('viewport');
+  var reader = document.getElementById('reader');
+  var forecast = document.getElementById('forecast');
+
+  /* Estado de foco: linhas = [nav, destaque (notícia | tempo), rails...] */
+  var rows = [];
+  var cur = 0;
+  var lastContent = 1;
+  var navIndex = 0;
+  var navItems = [];
+  var overlay = null;
+  var returnFocus = null;
+  var WX = null;
+  /* 'kbd' = controle/teclado (foco + transform); 'pointer' = cursor do Silk, mouse ou toque (hover + rolagem nativa) */
+  var mode = 'kbd';
+  var topEl = document.querySelector('.top');
+  var lastPointerDown = 0;
+  var hovered = null;
+  var wxError = false;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function ago(m) {
+    if (m < 60) return 'Há ' + m + (m === 1 ? ' minuto' : ' minutos');
+    var h = Math.round(m / 60);
+    return 'Há ' + h + (h === 1 ? ' hora' : ' horas');
+  }
+  function byId(id) { return STORIES.find(function (s) { return s.id === id; }); }
+  function remPx(n) { return parseFloat(getComputedStyle(root).fontSize) * n; }
+
+  /* card = miniatura de 500px com carregamento preguiçoso; destaque e leitura usam a foto de 960px */
+  function mediaHTML(s, cls, card) {
+    var src = card ? IMG[s.id].replace('/960px-', '/500px-') : IMG[s.id];
+    return '<div class="media' + (cls ? ' ' + cls : '') + '"><div class="ph"><span class="ms" aria-hidden="true">' + CATS[s.cat] +
+      '</span></div><img alt="" decoding="async"' + (card ? ' loading="lazy"' : '') + ' src="' + src + '"></div>';
+  }
+  function guardImages(scope) {
+    scope.querySelectorAll('.media img').forEach(function (img) {
+      img.addEventListener('error', function () { img.remove(); });
+      if (img.complete && img.naturalWidth === 0) img.remove();
+    });
+  }
+
+  /* Tela cheia (API Fullscreen, com os nomes webkit dos navegadores de TV mais antigos) */
+  function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  function setupFullscreen() {
+    var btn = document.getElementById('fsBtn');
+    var de = document.documentElement;
+    var enabled = document.fullscreenEnabled !== undefined ? document.fullscreenEnabled : document.webkitFullscreenEnabled;
+    if (!(de.requestFullscreen || de.webkitRequestFullscreen) || enabled === false) { btn.hidden = true; return; }
+    function sync() {
+      var on = !!fsElement();
+      btn.querySelector('.ms').textContent = on ? 'close_fullscreen' : 'open_in_full';
+      btn.setAttribute('aria-label', on ? 'Sair da tela cheia' : 'Tela cheia');
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    btn.addEventListener('click', function () {
+      var req;
+      try {
+        if (fsElement()) req = document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen();
+        else req = de.requestFullscreen ? de.requestFullscreen() : de.webkitRequestFullscreen();
+      } catch (err) {}
+      if (req && req.catch) req.catch(function () {});
+    });
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync);
+    sync();
+  }
+
+  /* Montagem */
+  function build() {
+    navEl.innerHTML = SECTIONS.map(function (s) {
+      return '<button class="pill" type="button" data-section="' + s.key + '">' + s.key + '</button>';
+    }).join('') +
+      '<button class="pill fs" id="fsBtn" type="button" aria-label="Tela cheia" aria-pressed="false"><span class="ms" aria-hidden="true">open_in_full</span></button>';
+    setupFullscreen();
+    navItems = Array.prototype.slice.call(navEl.querySelectorAll('.pill:not([hidden])'));
+
+    var hero = STORIES[0];
+    var html =
+      '<section class="row" data-row="hero" data-section="Início">' +
+        '<div class="hero">' +
+          '<article class="feature" tabindex="0" role="button" data-id="' + hero.id + '" aria-label="Destaque: ' + esc(hero.title) + '. Pressione OK para ler a matéria completa">' +
+            '<div class="feature-clip">' + mediaHTML(hero) + '</div>' +
+            '<div class="feature-text">' +
+              '<div class="kicker"><span>Destaques</span><span class="rule" aria-hidden="true"></span><span>' + esc(hero.cat) + '</span></div>' +
+              '<h2 class="headline">' + esc(hero.title) + '</h2>' +
+              '<p class="summary">' + esc(hero.body[0]) + '</p>' +
+              '<div class="cta-wrap" aria-hidden="true"><div><span class="cta"><span class="ms" aria-hidden="true">local_library</span>Leia a matéria completa</span></div></div>' +
+            '</div>' +
+          '</article>' +
+          '<div class="wx" id="wx" tabindex="0" role="button" aria-label="Previsão do tempo em Novo Hamburgo. Pressione OK para ver a previsão completa">' +
+            '<div class="wx-head"><span class="wx-title">Previsão do tempo</span><span class="bar" aria-hidden="true"></span><span class="city">Novo Hamburgo, RS</span></div>' +
+            '<div class="wx-strip" id="wxStrip"></div>' +
+            '<div class="cta-wrap" aria-hidden="true"><div><span class="cta">Veja a previsão do tempo completa</span></div></div>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
+
+    SECTIONS.forEach(function (sec) {
+      var list = sec.key === 'Início'
+        ? STORIES.slice(1).sort(function (a, b) { return a.mins - b.mins; }).slice(0, 8)
+        : STORIES.filter(function (s) { return s.cat === sec.key && !s.live; });
+      html +=
+        '<section class="row" data-row="rail" data-section="' + sec.key + '">' +
+          '<div class="row-head"><h2>' + esc(sec.title) + '</h2></div>' +
+          '<div class="rail-wrap">' +
+          '<button class="peek prev" type="button" tabindex="-1" aria-label="Notícias anteriores"><span class="ms" aria-hidden="true">chevron_left</span></button>' +
+          '<div class="rail"><div class="frame" aria-hidden="true"></div><div class="track">' +
+          list.map(function (s) {
+            return '<button class="card" type="button" data-id="' + s.id + '">' +
+              mediaHTML(s, '', true) +
+              '<span class="txt"><span class="cat">' + esc(s.cat) + '</span>' +
+              '<h3>' + esc(s.title) + '</h3>' +
+              '<span class="time">' + ago(s.mins) + '</span></span>' +
+            '</button>';
+          }).join('') +
+          '</div></div>' +
+          '<button class="peek next" type="button" tabindex="-1" aria-label="Próximas notícias"><span class="ms" aria-hidden="true">chevron_right</span></button>' +
+          '</div>' +
+        '</section>';
+    });
+    rowsEl.innerHTML = html;
+    guardImages(rowsEl);
+    renderStrip();
+
+    rows = [{ type: 'nav' }];
+    rowsEl.querySelectorAll('.row').forEach(function (el) {
+      if (el.dataset.row === 'hero') {
+        rows.push({ type: 'hero', el: el, section: 'Início', index: 0,
+          items: [el.querySelector('.feature'), el.querySelector('.wx')] });
+      } else {
+        rows.push({
+          type: 'rail', el: el, section: el.dataset.section, index: 0, off: 0,
+          rail: el.querySelector('.rail'), track: el.querySelector('.track'), frame: el.querySelector('.frame'),
+          prev: el.querySelector('.peek.prev'), next: el.querySelector('.peek.next'),
+          cards: Array.prototype.slice.call(el.querySelectorAll('.card'))
+        });
+      }
+    });
+
+    rowsEl.querySelectorAll('.feature, .card').forEach(function (b) { b.addEventListener('click', onOpen); });
+    document.getElementById('wx').addEventListener('click', openForecast);
+    rows.forEach(function (r) {
+      if (r.type !== 'rail') return;
+      r.prev.addEventListener('click', function () { pageRail(r, -1); });
+      r.next.addEventListener('click', function () { pageRail(r, 1); });
+    });
+    navItems.forEach(function (b) {
+      b.addEventListener('click', function () {
+        var target = rows.findIndex(function (r) { return r.type !== 'nav' && r.section === b.dataset.section; });
+        if (target <= 0) return;
+        if (mode === 'pointer') scrollToRow(target, true);
+        else focusRow(target);
+      });
+    });
+  }
+
+  /* Rail: moldura fixa no 2º card a partir do 2º item */
+  function railStep(r) {
+    return r.cards.length > 1 ? r.cards[1].offsetLeft - r.cards[0].offsetLeft : r.cards[0].offsetWidth + remPx(2);
+  }
+  function applyRail(r) {
+    if (mode === 'pointer') { applyRailPointer(r); return; }
+    var step = r.cards.length > 1 ? r.cards[1].offsetLeft - r.cards[0].offsetLeft : r.cards[0].offsetWidth + remPx(2);
+    var offset = Math.max(0, r.index - 1);
+    var slot = r.index === 0 ? 0 : 1;
+    r.track.style.transform = 'translateX(' + (-offset * step) + 'px)';
+    r.frame.style.transform = 'translateX(' + (slot * step) + 'px)';
+    r.cards.forEach(function (c, k) { c.classList.toggle('is-peek-left', k === r.index - 2); });
+  }
+
+  /* Linhas: todo rail focado sobe para o topo da área de conteúdo */
+  function applyVertical(i) {
+    if (mode === 'pointer') return;
+    var r = rows[i];
+    if (!r || r.type === 'nav') return;
+    var y = r.type === 'rail' ? r.el.offsetTop : 0;
+    /* Não sobe além do fim do conteúdo: as últimas linhas param encostadas na base, sem espaço vazio */
+    y = Math.min(y, Math.max(0, rowsEl.offsetHeight - viewport.clientHeight));
+    rowsEl.style.transform = 'translateY(' + (-y) + 'px)';
+  }
+
+  function setActiveSection(key) {
+    navItems.forEach(function (b) {
+      if (b.dataset.section === key) b.setAttribute('aria-current', 'true');
+      else b.removeAttribute('aria-current');
+    });
+  }
+  function markActiveRail(i) {
+    rows.forEach(function (r, k) { if (r.type === 'rail') r.rail.classList.toggle('is-active', k === i); });
+  }
+
+  function focusRow(i) {
+    var r = rows[i];
+    if (!r || mode === 'pointer') return;
+    cur = i;
+    if (r.type === 'nav') {
+      markActiveRail(-1);
+      navItems[navIndex].focus({ preventScroll: true });
+      return;
+    }
+    lastContent = i;
+    setActiveSection(r.section);
+    markActiveRail(i);
+    applyVertical(i);
+    if (r.type === 'hero') r.items[r.index].focus({ preventScroll: true });
+    else { applyRail(r); r.cards[r.index].focus({ preventScroll: true }); }
+    navIndex = Math.max(0, navItems.findIndex(function (b) { return b.dataset.section === r.section; }));
+  }
+
+  function move(dir) {
+    var r = rows[cur];
+    if (dir === 'left' || dir === 'right') {
+      var d = dir === 'right' ? 1 : -1;
+      if (r.type === 'nav') {
+        navIndex = Math.max(0, Math.min(navItems.length - 1, navIndex + d));
+        navItems[navIndex].focus({ preventScroll: true });
+      } else if (r.type === 'hero') {
+        var h = Math.max(0, Math.min(r.items.length - 1, r.index + d));
+        if (h !== r.index) { r.index = h; r.items[h].focus({ preventScroll: true }); }
+      } else if (r.type === 'rail') {
+        var next = Math.max(0, Math.min(r.cards.length - 1, r.index + d));
+        if (next !== r.index) { r.index = next; applyRail(r); r.cards[next].focus({ preventScroll: true }); }
+      }
+      return;
+    }
+    if (dir === 'up') {
+      if (cur > 0) focusRow(cur - 1);
+    } else {
+      if (r.type === 'nav') focusRow(lastContent);
+      else if (cur < rows.length - 1) focusRow(cur + 1);
+    }
+  }
+
+  /* Mantém o estado certo também com mouse */
+  /* Zoom de feedback (só zoom in; ao perder o foco a imagem volta direto, sem animação): dispara quando o foco muda para um card, mas não quando a janela/aba
+     volta a ter foco nem quando o foco retorna ao mesmo card ao fechar a leitura */
+  var lastZoom = null;
+  function playZoom(el) {
+    if (lastZoom && lastZoom !== el) lastZoom.classList.remove('zoom-fx');
+    el.classList.remove('zoom-fx');
+    void el.offsetWidth;
+    el.classList.add('zoom-fx');
+  }
+  document.addEventListener('focusin', function (e) {
+    if (mode === 'pointer') return;
+    var ft = e.target;
+    if (!(ft.closest && ft.closest('.overlay'))) {
+      if (ft.matches && ft.matches('.card, .feature')) {
+        if (ft !== lastZoom) { playZoom(ft); lastZoom = ft; }
+      } else {
+        if (lastZoom) lastZoom.classList.remove('zoom-fx');
+        lastZoom = null;
+      }
+    }
+  });
+  document.addEventListener('focusin', function (e) {
+    if (mode === 'pointer') {
+      /* Foco movido sem clique (ex.: modo de navegação espacial do próprio Silk, ou Tab): volta ao modo controle */
+      if (Date.now() - lastPointerDown > 600 && e.target.matches && e.target.matches('.card, .feature, .wx, .pill, .back')) setMode('kbd', e.target);
+      return;
+    }
+    if (overlay) return;
+    viewport.scrollTop = 0; viewport.scrollLeft = 0;
+    rows.forEach(function (r) { if (r.rail) r.rail.scrollLeft = 0; });
+    var t = e.target;
+    var ni = navItems.indexOf(t);
+    if (ni !== -1) { cur = 0; navIndex = ni; markActiveRail(-1); return; }
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i];
+      if (r.type === 'hero') {
+        var hi = r.items.indexOf(t);
+        if (hi !== -1 && (cur !== i || r.index !== hi)) { r.index = hi; focusRow(i); return; }
+      }
+      if (r.type === 'rail') {
+        var ci = r.cards.indexOf(t);
+        if (ci !== -1 && (cur !== i || r.index !== ci)) { r.index = ci; focusRow(i); return; }
+      }
+    }
+  });
+
+  /* Telas sobrepostas */
+  /* O Voltar do Silk (modo cursor) navega no histórico em vez de chegar como tecla: cada tela sobreposta
+     ganha uma entrada no histórico e o popstate a fecha, sem sair do site. */
+  var pushed = false;
+  try { history.scrollRestoration = 'manual'; } catch (err) {}
+  var savedScroll = null;
+  function openOverlay(el, from) {
+    var y = window.scrollY;
+    returnFocus = from;
+    overlay = el;
+    el.hidden = false;
+    el.scrollTop = 0;
+    app.setAttribute('aria-hidden', 'true');
+    document.body.classList.add('has-overlay');
+    if (mode === 'pointer') { savedScroll = y; window.scrollTo(0, 0); }
+    else el.querySelector('.back').focus({ preventScroll: true });
+    try { history.pushState({ rotOverlay: true }, ''); pushed = true; } catch (err) { pushed = false; }
+  }
+  function closeOverlay() {
+    if (!overlay) return;
+    overlay.hidden = true;
+    overlay = null;
+    pushed = false;
+    app.removeAttribute('aria-hidden');
+    document.body.classList.remove('has-overlay');
+    if (mode === 'pointer') {
+      if (savedScroll === null) scrollToRow(lastContent, false);
+      else window.scrollTo(0, savedScroll);
+      savedScroll = null;
+      updateFromScroll();
+    } else if (returnFocus) returnFocus.focus({ preventScroll: true });
+  }
+  function requestClose() {
+    if (!overlay) return;
+    if (pushed) {
+      var ov = overlay;
+      history.back();
+      /* Se o popstate não chegar (ex.: histórico bloqueado no iframe), fecha mesmo assim */
+      setTimeout(function () { if (overlay === ov) closeOverlay(); }, 400);
+    } else closeOverlay();
+  }
+  window.addEventListener('popstate', function () { if (overlay) closeOverlay(); });
+  document.getElementById('readerBack').addEventListener('click', requestClose);
+  document.getElementById('fcBack').addEventListener('click', requestClose);
+
+  function onOpen(e) {
+    var s = byId(Number(e.currentTarget.dataset.id));
+    document.getElementById('readerKicker').innerHTML =
+      (s.live ? '<span>AO VIVO</span><span class="rule" aria-hidden="true"></span>' : '') + '<span>' + esc(s.cat) + '</span>';
+    document.getElementById('readerTitle').textContent = s.title;
+    document.getElementById('readerMeta').innerHTML = '<span>' + ago(s.mins) + '</span><span>Por Redação Read on TV</span><span>Foto ilustrativa: Wikimedia Commons</span>';
+    document.getElementById('readerBody').innerHTML = s.body.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('');
+    var media = document.getElementById('readerMedia');
+    media.innerHTML = mediaHTML(s);
+    guardImages(media);
+    openOverlay(reader, e.currentTarget);
+  }
+  function openForecast(e) {
+    renderForecast();
+    openOverlay(forecast, e.currentTarget);
+  }
+
+
+  /* ===== Modo cursor ===== */
+  var VISIBLE = 3; /* cards inteiros visíveis por rail */
+  function maxOff(r) { return Math.max(0, r.cards.length - VISIBLE); }
+  function applyRailPointer(r) {
+    r.off = Math.max(0, Math.min(maxOff(r), r.off));
+    r.track.style.transform = 'translateX(' + (-r.off * railStep(r)) + 'px)';
+    r.cards.forEach(function (c, k) { c.classList.toggle('is-peek-left', k === r.off - 1); });
+    r.prev.disabled = r.off === 0;
+    r.next.disabled = r.off >= maxOff(r);
+  }
+  /* A seta do peek avança/volta uma página (3 cards) */
+  function pageRail(r, d) {
+    r.off += d * VISIBLE;
+    applyRailPointer(r);
+  }
+
+  function noAnim(fn) {
+    root.classList.add('no-anim');
+    fn();
+    void root.offsetWidth;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('no-anim'); }); });
+  }
+
+  /* Rolagem do documento que deixa a linha logo abaixo do cabeçalho (mesma posição do modo controle) */
+  function scrollTargetFor(i) {
+    var r = rows[i];
+    if (!r || !r.el || r.type === 'hero') return 0;
+    var top = r.el.getBoundingClientRect().top + window.scrollY;
+    return Math.max(0, top - topEl.offsetHeight - remPx(1.5));
+  }
+  function scrollToRow(i, smooth) {
+    window.scrollTo({ top: scrollTargetFor(i), behavior: smooth && !reduceMotion ? 'smooth' : 'auto' });
+  }
+  /* Linha de conteúdo que está no topo da área visível */
+  function rowAtTop() {
+    var limit = topEl.getBoundingClientRect().bottom + remPx(4);
+    var best = 1;
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i].el.getBoundingClientRect().bottom > limit) { best = i; break; }
+      best = i;
+    }
+    return best;
+  }
+  var scrollQueued = false;
+  function updateFromScroll() {
+    if (mode !== 'pointer' || overlay) return;
+    topEl.classList.toggle('stuck', window.scrollY > 2);
+    var i = rowAtTop();
+    /* No fim da página a última seção não chega ao topo; marca a última */
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) i = rows.length - 1;
+    lastContent = i;
+    setActiveSection(rows[i].section);
+  }
+  window.addEventListener('scroll', function () {
+    if (scrollQueued) return;
+    scrollQueued = true;
+    requestAnimationFrame(function () { scrollQueued = false; updateFromScroll(); });
+  }, { passive: true });
+
+  /* Aviso de troca de modo */
+  var sheet = document.getElementById('modeSheet');
+  var sheetTimer = null;
+  var booted = false;
+  var MODE_COPY = {
+    kbd: { icon: 'gamepad', title: 'Modo controle',
+      desc: 'Use as <b>setas</b> para navegar e <b>OK</b> para abrir.' },
+    pointer: { icon: 'mouse', title: 'Modo cursor',
+      desc: 'Aponte para uma notícia e aperte <b>OK</b> para abrir.' }
+  };
+  function notifyMode(m) {
+    if (!booted) return;
+    var c = MODE_COPY[m];
+    document.getElementById('modeIcon').textContent = c.icon;
+    document.getElementById('modeTitle').textContent = c.title;
+    document.getElementById('modeDesc').innerHTML = c.desc;
+    /* Reinicia a entrada e a contagem mesmo se o aviso já estiver na tela */
+    sheet.classList.remove('show');
+    void sheet.offsetWidth;
+    sheet.classList.add('show');
+    clearTimeout(sheetTimer);
+    sheetTimer = setTimeout(function () { sheet.classList.remove('show'); }, 4000);
+  }
+  function setMode(m, target) {
+    var prev = mode;
+    applyMode(m, target);
+    if (mode !== prev) notifyMode(mode);
+  }
+
+  function applyMode(m, target) {
+    if (m === mode) return;
+    if (m === 'pointer') {
+      var keep = cur === 0 ? lastContent : cur;
+      var ovScroll = overlay ? overlay.scrollTop : 0;
+      mode = 'pointer';
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+      if (lastZoom) { lastZoom.classList.remove('zoom-fx'); lastZoom = null; }
+      markActiveRail(-1);
+      noAnim(function () {
+        root.classList.add('pointer');
+        rowsEl.style.transform = '';
+        rows.forEach(function (r) { if (r.type === 'rail') { r.off = Math.max(0, r.index - 1); applyRailPointer(r); } });
+      });
+      if (overlay) { savedScroll = null; window.scrollTo(0, ovScroll); }
+      else { window.scrollTo(0, scrollTargetFor(keep)); updateFromScroll(); }
+      return;
+    }
+
+    /* Volta ao controle: foca o item sob o cursor ou, se não houver, a linha que está no topo */
+    var el = target || (hovered && hovered.matches(':hover') ? hovered : null);
+    var top = overlay ? 0 : rowAtTop();
+    var docScroll = window.scrollY;
+    mode = 'kbd';
+    topEl.classList.remove('stuck');
+    noAnim(function () {
+      root.classList.remove('pointer');
+      window.scrollTo(0, 0);
+      rows.forEach(function (r) {
+        if (r.type !== 'rail') return;
+        r.index = r.off === 0 ? 0 : Math.min(r.cards.length - 1, r.off + 1);
+        applyRail(r);
+      });
+      if (overlay) return;
+      var i = top, ni;
+      if (el && (ni = navItems.indexOf(el)) !== -1) { navIndex = ni; i = 0; }
+      else if (el) {
+        for (var k = 1; k < rows.length; k++) {
+          var r = rows[k];
+          var idx = r.type === 'hero' ? r.items.indexOf(el) : r.cards.indexOf(el);
+          if (idx !== -1) { r.index = idx; i = k; break; }
+        }
+      }
+      if (i !== 0) applyVertical(i);
+      focusRow(i);
+    });
+    if (overlay) { overlay.scrollTop = docScroll; overlay.querySelector('.back').focus({ preventScroll: true }); return; }
+    var a = document.activeElement;
+    if (a && a.matches && a.matches('.card, .feature') && a !== lastZoom) { playZoom(a); lastZoom = a; }
+  }
+
+  /* Sinais de cursor: movimento real do ponteiro (não os mousemove sintéticos de layout), clique/toque e roda */
+  var lastX = null, lastY = null;
+  document.addEventListener('mousemove', function (e) {
+    if (lastX !== null && (Math.abs(e.clientX - lastX) > 2 || Math.abs(e.clientY - lastY) > 2)) setMode('pointer');
+    lastX = e.clientX; lastY = e.clientY;
+  }, { passive: true });
+  document.addEventListener('pointerdown', function () { lastPointerDown = Date.now(); setMode('pointer'); }, true);
+  document.addEventListener('touchstart', function () { lastPointerDown = Date.now(); setMode('pointer'); }, { passive: true, capture: true });
+  document.addEventListener('wheel', function () { setMode('pointer'); }, { passive: true });
+  /* No modo cursor o clique não deve deixar foco para trás (o OK do controle acionaria o item errado) */
+  document.addEventListener('mousedown', function (e) {
+    if (mode === 'pointer' && e.target.closest && e.target.closest('button, [role="button"]')) e.preventDefault();
+  });
+  document.addEventListener('mouseover', function (e) {
+    var t = e.target.closest && e.target.closest('.card, .feature, .wx, .pill');
+    if (t) hovered = t;
+  });
+
+  /* Teclas do controle */
+  var BACK_KEYS = ['Escape', 'Backspace', 'BrowserBack', 'GoBack'];
+  /* 4 = Voltar do controle do Fire TV quando a página roda num WebView */
+  var BACK_CODES = [461, 10009, 8, 27, 4];
+  var KEY_DIRS = { 37: 'ArrowLeft', 38: 'ArrowUp', 39: 'ArrowRight', 40: 'ArrowDown' };
+  document.addEventListener('keydown', function (e) {
+    var map = { ArrowRight: 'right', ArrowLeft: 'left', ArrowDown: 'down', ArrowUp: 'up' };
+    var key = map[e.key] ? e.key : (KEY_DIRS[e.keyCode] || e.key);
+    var isBack = BACK_KEYS.indexOf(e.key) !== -1 || BACK_CODES.indexOf(e.keyCode) !== -1;
+    if (mode === 'pointer') {
+      /* A primeira seta só devolve o foco visível; as próximas navegam */
+      if (map[key]) { e.preventDefault(); setMode('kbd'); }
+      else if (isBack && overlay) { e.preventDefault(); requestClose(); }
+      return;
+    }
+    if (overlay) {
+      if (isBack) { e.preventDefault(); requestClose(); }
+      else if (key === 'ArrowDown' || key === 'ArrowUp') {
+        e.preventDefault();
+        overlay.scrollBy({ top: (key === 'ArrowDown' ? 1 : -1) * window.innerHeight * 0.3, behavior: reduceMotion ? 'auto' : 'smooth' });
+      } else if (map[key]) e.preventDefault();
+      return;
+    }
+    /* OK do controle nos blocos do destaque (não são <button>) */
+    var t = document.activeElement;
+    if ((e.key === 'Enter' || e.keyCode === 13) && t && t.getAttribute('role') === 'button' && t.tagName !== 'BUTTON') {
+      e.preventDefault(); t.click(); return;
+    }
+    if (map[key]) { e.preventDefault(); move(map[key]); return; }
+    if (isBack && cur !== 0) { e.preventDefault(); focusRow(0); }
+  });
+
+  /* Data e hora */
+  var TZ = 'America/Sao_Paulo';
+  function tick() {
+    var now = new Date();
+    var p = {};
+    new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+      .formatToParts(now).forEach(function (x) { p[x.type] = x.value; });
+    var wd = (p.weekday || '').replace('.', '');
+    var mo = (p.month || '').replace('.', '');
+    document.getElementById('date').textContent = cap(wd) + ', ' + p.day + ' ' + mo + '/' + p.year;
+    document.getElementById('time').textContent =
+      new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(now);
+  }
+
+  /* Previsão do tempo (Open-Meteo, gratuita e sem chave) */
+  function wmo(code, isDay) {
+    if (code === 0) return ['Céu limpo', isDay ? 'clear_day' : 'clear_night'];
+    if (code === 1) return ['Poucas nuvens', isDay ? 'partly_cloudy_day' : 'partly_cloudy_night'];
+    if (code === 2) return ['Parcialmente nublado', isDay ? 'partly_cloudy_day' : 'partly_cloudy_night'];
+    if (code === 3) return ['Nublado', 'cloud'];
+    if (code === 45 || code === 48) return ['Nevoeiro', 'foggy'];
+    if (code >= 51 && code <= 57) return ['Garoa', 'rainy_light'];
+    if (code >= 61 && code <= 67) return ['Chuva', 'rainy'];
+    if (code >= 80 && code <= 82) return ['Pancadas de chuva', 'rainy_heavy'];
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return ['Neve', 'weather_snowy'];
+    if (code >= 95) return ['Tempestade', 'thunderstorm'];
+    return ['Instável', 'partly_cloudy_day'];
+  }
+  function dayLabel(dateStr, i) {
+    if (i === 0) return 'Hoje';
+    var d = new Date(dateStr + 'T12:00:00Z');
+    return cap(new Intl.DateTimeFormat('pt-BR', { weekday: 'short', timeZone: 'UTC' }).format(d).replace('.', ''));
+  }
+  function dayLong(dateStr, i) {
+    if (i === 0) return 'Hoje';
+    if (i === 1) return 'Amanhã';
+    var d = new Date(dateStr + 'T12:00:00Z');
+    return cap(new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZone: 'UTC' }).format(d).split('-')[0]);
+  }
+  function deg(n) { return Math.round(n) + '°'; }
+
+  function setHeaderWeather(icon, temp, label) {
+    document.getElementById('weather').innerHTML =
+      '<span class="ms" aria-hidden="true">' + icon + '</span>' +
+      (temp !== null ? '<span class="temp">' + temp + '</span>' : '') +
+      '<span class="lbl">' + esc(label) + '</span>';
+  }
+
+  function renderStrip() {
+    var strip = document.getElementById('wxStrip');
+    if (!strip) return;
+    if (!WX) {
+      if (wxError) {
+        strip.innerHTML = '<div class="wx-msg"><span class="ms" aria-hidden="true">cloud_off</span>Previsão indisponível no momento</div>';
+        return;
+      }
+      strip.innerHTML = ['Hoje', '—', '—', '—'].map(function (l, i) {
+        return '<div class="day skel' + (i === 0 ? ' today' : '') + '"><span class="d">' + l + '</span>' +
+          '<span class="ms" aria-hidden="true">cloud_sync</span><span class="t">--°</span><span class="c">Carregando</span><span class="r">&nbsp;</span></div>';
+      }).join('');
+      return;
+    }
+    var d = WX.daily, c = WX.current;
+    strip.innerHTML = d.time.map(function (t, i) {
+      var w = i === 0 ? wmo(c.weather_code, c.is_day === 1) : wmo(d.weather_code[i], true);
+      var big = i === 0 ? c.temperature_2m : d.temperature_2m_max[i];
+      return '<div class="day' + (i === 0 ? ' today' : '') + '">' +
+        '<span class="d">' + dayLabel(t, i) + '</span>' +
+        '<span class="ms fill" aria-hidden="true">' + w[1] + '</span>' +
+        '<span class="t">' + deg(big) + '</span>' +
+        '<span class="c">' + w[0] + '</span>' +
+        '<span class="r"><b>' + deg(d.temperature_2m_max[i]) + '</b> / ' + deg(d.temperature_2m_min[i]) + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderForecast() {
+    var body = document.getElementById('fcBody');
+    var upd = document.getElementById('fcUpd');
+    if (!WX) {
+      upd.textContent = '';
+      body.innerHTML = '<div class="fc-msg"><span class="ms" aria-hidden="true">' + (wxError ? 'cloud_off' : 'cloud_sync') + '</span>' +
+        (wxError ? 'Não foi possível carregar a previsão agora. Tente de novo em alguns minutos.' : 'Carregando previsão…') + '</div>';
+      return;
+    }
+    var c = WX.current, d = WX.daily, h = WX.hourly;
+    var now = wmo(c.weather_code, c.is_day === 1);
+    upd.textContent = 'Atualizado às ' + c.time.slice(11, 16);
+
+    var key = c.time.slice(0, 13);
+    var start = Math.max(0, h.time.findIndex(function (t) { return t.slice(0, 13) === key; }));
+    var hours = '';
+    for (var k = 0; k < 6; k++) {
+      var j = start + k * 3;
+      if (j >= h.time.length) break;
+      var hw = wmo(h.weather_code[j], h.is_day[j] === 1);
+      hours += '<div class="hour"><span class="h">' + (k === 0 ? 'Agora' : h.time[j].slice(11, 16)) + '</span>' +
+        '<span class="ms fill" aria-hidden="true">' + hw[1] + '</span>' +
+        '<span class="t">' + deg(h.temperature_2m[j]) + '</span>' +
+        '<span class="p"><span class="ms fill" aria-hidden="true">water_drop</span>' + (h.precipitation_probability[j] || 0) + '%</span></div>';
+    }
+
+    var lo = Math.min.apply(null, d.temperature_2m_min), hi = Math.max.apply(null, d.temperature_2m_max);
+    var span = Math.max(1, hi - lo);
+    var week = d.time.map(function (t, i) {
+      var w = wmo(d.weather_code[i], true);
+      var left = (d.temperature_2m_min[i] - lo) / span * 100;
+      var width = (d.temperature_2m_max[i] - d.temperature_2m_min[i]) / span * 100;
+      return '<div class="wrow">' +
+        '<span class="dd"><b>' + dayLong(t, i) + '</b><span>' + w[0] + '</span></span>' +
+        '<span class="ms fill" aria-hidden="true">' + w[1] + '</span>' +
+        '<span class="p"><span class="ms fill" aria-hidden="true">water_drop</span>' + (d.precipitation_probability_max[i] || 0) + '%</span>' +
+        '<span class="mn">' + deg(d.temperature_2m_min[i]) + '</span>' +
+        '<span class="range" aria-hidden="true"><i style="left:' + left.toFixed(1) + '%;width:' + Math.max(4, width).toFixed(1) + '%"></i></span>' +
+        '<span class="mx">' + deg(d.temperature_2m_max[i]) + '</span>' +
+      '</div>';
+    }).join('');
+
+    body.innerHTML =
+      '<div class="fc-grid">' +
+        '<section class="fc-now">' +
+          '<div class="now-card">' +
+            '<div class="now-main">' +
+              '<span class="ms fill" aria-hidden="true">' + now[1] + '</span>' +
+              '<span class="now-temp">' + deg(c.temperature_2m) + '</span>' +
+              '<span class="now-desc"><strong>' + now[0] + '</strong><span>Máx ' + deg(d.temperature_2m_max[0]) + ' · Mín ' + deg(d.temperature_2m_min[0]) + '</span></span>' +
+            '</div>' +
+            '<div class="now-details">' +
+              '<div class="det"><span class="k"><span class="ms" aria-hidden="true">thermostat</span>Sensação</span><span class="v">' + deg(c.apparent_temperature) + '</span></div>' +
+              '<div class="det"><span class="k"><span class="ms" aria-hidden="true">humidity_percentage</span>Umidade</span><span class="v">' + Math.round(c.relative_humidity_2m) + '%</span></div>' +
+              '<div class="det"><span class="k"><span class="ms" aria-hidden="true">air</span>Vento</span><span class="v">' + Math.round(c.wind_speed_10m) + ' km/h</span></div>' +
+              '<div class="det"><span class="k"><span class="ms" aria-hidden="true">umbrella</span>Chuva hoje</span><span class="v">' + (d.precipitation_probability_max[0] || 0) + '%</span></div>' +
+              '<div class="det"><span class="k"><span class="ms" aria-hidden="true">wb_twilight</span>Nascer do sol</span><span class="v">' + d.sunrise[0].slice(11, 16) + '</span></div>' +
+              '<div class="det"><span class="k"><span class="ms" aria-hidden="true">bedtime</span>Pôr do sol</span><span class="v">' + d.sunset[0].slice(11, 16) + '</span></div>' +
+            '</div>' +
+          '</div>' +
+          '<div><h3>Próximas horas</h3><div class="hours">' + hours + '</div></div>' +
+        '</section>' +
+        '<section><h3>Próximos 7 dias</h3><div class="week">' + week + '</div></section>' +
+      '</div>';
+  }
+
+  function loadWeather() {
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=-29.6783&longitude=-51.1306' +
+      '&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day' +
+      '&hourly=temperature_2m,weather_code,precipitation_probability,is_day' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset' +
+      '&timezone=America%2FSao_Paulo&forecast_days=7';
+    var ctl = 'AbortController' in window ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 8000);
+    fetch(url, ctl ? { signal: ctl.signal } : {})
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (data) {
+        clearTimeout(timer);
+        WX = data; wxError = false;
+        var w = wmo(data.current.weather_code, data.current.is_day === 1);
+        setHeaderWeather(w[1], deg(data.current.temperature_2m), w[0]);
+      })
+      .catch(function () {
+        clearTimeout(timer);
+        if (!WX) { wxError = true; setHeaderWeather('cloud_off', null, 'Tempo indisponível'); }
+      })
+      .then(function () {
+        renderStrip();
+        if (overlay === forecast) renderForecast();
+      });
+  }
+
+  /* Início */
+  build();
+  tick();
+  setInterval(tick, 15000);
+  loadWeather();
+  setInterval(loadWeather, 15 * 60 * 1000);
+  window.addEventListener('resize', function () {
+    rows.forEach(function (r) { if (r.type === 'rail') applyRail(r); });
+    applyVertical(cur === 0 ? lastContent : cur);
+  });
+  rows.forEach(function (r) { if (r.type === 'rail') applyRailPointer(r); });
+  focusRow(1);
+  /* O Silk do Fire TV abre com o cursor virtual; mouse de desktop também começa no modo cursor */
+  var startPointer = /Silk/i.test(navigator.userAgent) ||
+    (window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+  if (startPointer) setMode('pointer');
+  booted = true;
+  window.addEventListener('load', function () {
+    if (mode === 'kbd' && !overlay && (!document.activeElement || document.activeElement === document.body)) focusRow(1);
+  });
+})();
+</script>
+
+</html>

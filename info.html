@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<title>Read on TV · Diagnóstico de tela</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg: #121212; --fg: #FFFFFF; --muted: #B8B8B8; --accent: #66B2FF; color-scheme: dark; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
+  main { padding: 4vh 6vw; }
+  h1 { margin: 0 0 3vh; font-size: 5vh; color: var(--accent); }
+  table { border-collapse: collapse; font-size: 4vh; }
+  td { padding: .6vh 3vw .6vh 0; }
+  td:first-child { color: var(--muted); }
+  td:last-child { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .verdict { margin-top: 3vh; font-size: 3.6vh; max-width: 80vw; line-height: 1.4; }
+  .verdict b { color: var(--accent); }
+  .lines { margin-top: 3vh; height: 10vh; width: 60vw;
+    background: repeating-linear-gradient(90deg, #fff 0 1px, transparent 1px 2px); }
+  .small { font-size: 12px; margin-top: 2vh; }
+  a { color: var(--accent); font-size: 3.6vh; display: inline-block; margin-top: 3vh; }
+</style>
+<main>
+  <h1>Diagnóstico de tela</h1>
+  <table id="t"></table>
+  <p class="verdict" id="v"></p>
+  <div class="lines" aria-hidden="true"></div>
+  <p class="small">Texto de 12 px para comparar nitidez</p>
+  <a href="./">Voltar ao Read on TV</a>
+</main>
+<script>
+  var dpr = window.devicePixelRatio || 1;
+  var w = window.innerWidth, h = window.innerHeight;
+  var rows = [
+    ['Largura × altura da página (CSS)', w + ' × ' + h],
+    ['devicePixelRatio', dpr],
+    ['Pixels reais desenhados', Math.round(w * dpr) + ' × ' + Math.round(h * dpr)],
+    ['screen.width × height', screen.width + ' × ' + screen.height],
+    ['Navegador', /Silk\/([\d.]+)/.test(navigator.userAgent) ? 'Silk ' + RegExp.$1 : navigator.userAgent.slice(0, 60)]
+  ];
+  document.getElementById('t').innerHTML = rows.map(function (r) {
+    return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+  }).join('');
+  var real = w * dpr;
+  document.getElementById('v').innerHTML = real < 1500
+    ? 'O navegador desenha a página com só <b>' + Math.round(real) + ' px</b> de largura e amplia para a TV. É isso que deixa a interface pixelada.'
+    : 'O navegador desenha a página em <b>' + Math.round(real) + ' px</b> de largura, resolução suficiente para 1080p.';
+  document.querySelector('.lines').style.height = '10vh';
+</script>
+</html>
