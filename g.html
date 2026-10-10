@@ -1,9 +1,9 @@
 <!doctype html>
 <!--
   TESTE DESCARTÁVEL — Gamepad API
-  Página isolada que só verifica se o navegador (ex.: Silk no Fire TV) expõe a Gamepad API.
-  Não é usada pelo resto do projeto. Para remover: apague este arquivo (g.html)
-  e a linha marcada "TESTE-GAMEPAD" no index.html.
+  Página isolada que verifica como o navegador (ex.: Silk no Fire TV) entrega um controle de jogo:
+  pela Gamepad API, como teclas ou como ponteiro (cursor). Não é usada pelo resto do projeto.
+  Para remover: apague este arquivo (g.html) e a linha marcada "TESTE-GAMEPAD" no index.html.
 -->
 <html lang="pt-BR">
 <title>Read on TV · Teste Gamepad</title>
@@ -11,145 +11,146 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --bg: #121212; --fg: #FFFFFF; --muted: #B8B8B8; --accent: #66B2FF; --ok: #7BE495; --bad: #FF8A80; --warn: #FFD54F; color-scheme: dark; }
-  html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
-  main { padding: 4vh 6vw; }
-  h1 { margin: 0 0 1vh; font-size: 5vh; color: var(--accent); }
-  .hint { margin: 0 0 3vh; font-size: 2.8vh; color: var(--muted); }
-  .verdict { font-size: 4vh; font-weight: 700; margin: 0 0 3vh; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; overflow: hidden; }
+  main { padding: 3vh 4vw; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; gap: 2vw; }
+  h1 { margin: 0; font-size: 4vh; color: var(--accent); }
+  .hint { margin: 0; font-size: 2.4vh; color: var(--muted); }
+  .verdict { font-size: 5vh; font-weight: 800; line-height: 1.15; margin: 1.5vh 0 2vh; }
   .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
-  .cols { display: flex; gap: 4vw; align-items: flex-start; }
-  .cols > section { flex: 1; min-width: 0; }
-  h2 { font-size: 3vh; color: var(--muted); margin: 0 0 1vh; font-weight: 600; }
-  table { border-collapse: collapse; font-size: 2.6vh; }
-  td { padding: .5vh 2vw .5vh 0; vertical-align: top; }
-  td:first-child { color: var(--muted); white-space: nowrap; }
-  td:last-child { font-variant-numeric: tabular-nums; font-weight: 700; word-break: break-word; }
-  .pad { border: 2px solid #333; border-radius: 1vh; padding: 1.5vh; margin-bottom: 1.5vh; font-size: 2.4vh; }
-  .pad .id { font-weight: 700; margin-bottom: 1vh; word-break: break-word; }
-  .btns span { display: inline-block; min-width: 3.4vh; padding: .3vh .4vh; margin: 0 .5vh .5vh 0; text-align: center; border-radius: .6vh; background: #2a2a2a; color: var(--muted); }
-  .btns span.on { background: var(--ok); color: #000; font-weight: 700; }
-  .axes { margin-top: .5vh; font-variant-numeric: tabular-nums; }
-  #log { font-family: ui-monospace, monospace; font-size: 2.2vh; line-height: 1.5; color: var(--muted); max-height: 30vh; overflow: hidden; margin: 0; padding: 0; list-style: none; }
-  #log li:first-child { color: var(--fg); }
-  a { color: var(--accent); font-size: 3.2vh; display: inline-block; margin-top: 3vh; padding: .5vh 1vw; border-radius: .6vh; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1vh 4vw; }
+  .row { display: flex; gap: 1.5vw; align-items: baseline; font-size: 3.6vh; line-height: 1.25; border-bottom: 1px solid #2a2a2a; padding-bottom: .6vh; }
+  .row .k { color: var(--muted); flex: 0 0 34%; font-size: 3vh; }
+  .row .v { font-weight: 700; font-variant-numeric: tabular-nums; word-break: break-word; min-width: 0; }
+  .row.wide { grid-column: 1 / -1; }
+  .row.wide .k { flex-basis: 16%; }
+  .last { margin-top: 1.5vh; font-family: ui-monospace, monospace; font-size: 2.6vh; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  a { color: var(--accent); font-size: 2.8vh; }
   a:focus { outline: 3px solid var(--accent); outline-offset: 3px; }
 </style>
 <main>
-  <h1>Teste Gamepad API</h1>
-  <p class="hint">Conecte o controle por Bluetooth e aperte qualquer botão dele. O navegador só revela o controle depois do primeiro toque.</p>
-  <p class="verdict" id="verdict">Verificando…</p>
-  <div class="cols">
-    <section>
-      <h2>Navegador</h2>
-      <table id="caps"></table>
-    </section>
-    <section>
-      <h2>Controles detectados</h2>
-      <div id="pads"><p class="hint">Nenhum ainda.</p></div>
-      <h2>Últimos eventos</h2>
-      <ul id="log"></ul>
-    </section>
+  <div class="head">
+    <h1>Teste Gamepad</h1>
+    <p class="hint">Aperte A, B, X, Y, gatilhos, direcional, analógicos, Start e Select do controle. Depois tire a foto. <a href="./" id="back">Voltar</a></p>
   </div>
-  <a href="./" id="back">Voltar ao Read on TV</a>
+  <p class="verdict warn" id="verdict">Aguardando o controle…</p>
+  <div class="grid" id="grid"></div>
+  <div class="last" id="last">Último evento: —</div>
 </main>
 <script>
 (function () {
   var nav = window.navigator;
   var hasGet = typeof nav.getGamepads === 'function' || typeof nav.webkitGetGamepads === 'function';
   function getPads() {
-    try {
-      var list = nav.getGamepads ? nav.getGamepads() : nav.webkitGetGamepads();
-      return list || [];
-    } catch (err) { log('erro em getGamepads(): ' + err.message); return []; }
+    try { return (nav.getGamepads ? nav.getGamepads() : nav.webkitGetGamepads()) || []; } catch (err) { return []; }
   }
-  var policy = '—';
-  try {
-    var fp = document.permissionsPolicy || document.featurePolicy;
-    if (fp && fp.allowsFeature) policy = fp.allowsFeature('gamepad') ? 'permitido' : 'bloqueado';
-  } catch (err) {}
   var ua = nav.userAgent;
-  var browser = /Silk\/([\d.]+)/.test(ua) ? 'Silk ' + RegExp.$1 : (/Chrome\/([\d.]+)/.test(ua) ? 'Chrome ' + RegExp.$1 : ua.slice(0, 60));
-  var slots = hasGet ? getPads().length : 0;
-  var caps = [
-    ['Navegador', browser],
-    ['navigator.getGamepads', typeof nav.getGamepads === 'function' ? 'sim' : (typeof nav.webkitGetGamepads === 'function' ? 'só webkitGetGamepads' : 'não')],
-    ['Evento gamepadconnected', 'ongamepadconnected' in window ? 'sim' : 'não declarado'],
-    ['Contexto seguro (HTTPS)', window.isSecureContext === undefined ? '—' : (window.isSecureContext ? 'sim' : 'não')],
-    ['Permissions Policy', policy],
-    ['Vagas de controle', String(slots)],
-    ['Vibração (vibrationActuator)', '—']
-  ];
-  function renderCaps() {
-    document.getElementById('caps').innerHTML = caps.map(function (r) {
-      return '<tr><td>' + r[0] + '</td><td>' + esc(r[1]) + '</td></tr>';
+  var browser = /Silk\/([\d.]+)/.test(ua) ? 'Silk ' + RegExp.$1 : (/Chrome\/([\d.]+)/.test(ua) ? 'Chrome ' + RegExp.$1 : ua.slice(0, 40));
+  var os = /Android ([\d.]+)/.test(ua) ? 'Android ' + RegExp.$1 : '';
+  var model = /;\s*(AFT\w+)/.test(ua) ? RegExp.$1 : '';
+
+  /* Tudo o que é medido para a análise */
+  var S = {
+    padEvents: 0, padIds: {}, mapping: '', btns: {}, axesMoved: {}, maxPads: 0,
+    keys: 0, keyList: [],
+    pMove: 0, pTypes: {}, mMove: 0, down: 0, buttons: {}, clicks: 0, wheel: 0, ctx: 0, touch: 0,
+    blur: 0, hidden: 0, focusMoves: 0,
+    last: '—'
+  };
+  function setKeys(o) { return Object.keys(o); }
+  function note(msg) { S.last = msg; }
+
+  window.addEventListener('gamepadconnected', function (e) { S.padEvents++; note('gamepadconnected ' + (e.gamepad && e.gamepad.id)); });
+  window.addEventListener('gamepaddisconnected', function () { note('gamepaddisconnected'); });
+  document.addEventListener('keydown', function (e) {
+    S.keys++;
+    var k = (e.key || '?') + '/' + e.keyCode;
+    if (S.keyList.indexOf(k) === -1) S.keyList.push(k);
+    note('keydown ' + k);
+    /* Evita que setas rolem a página e que Voltar saia antes da foto (Esc/Backspace) */
+    if ([37, 38, 39, 40, 32, 8].indexOf(e.keyCode) !== -1 && e.target !== document.getElementById('back')) e.preventDefault();
+  });
+  document.addEventListener('pointermove', function (e) { S.pMove++; S.pTypes[e.pointerType || '?'] = 1; }, { passive: true });
+  document.addEventListener('mousemove', function () { S.mMove++; }, { passive: true });
+  document.addEventListener('mousedown', function (e) { S.down++; S.buttons[e.button] = 1; note('mousedown botão ' + e.button); });
+  document.addEventListener('click', function (e) { S.clicks++; note('click em ' + e.target.tagName.toLowerCase()); });
+  document.addEventListener('wheel', function (e) { S.wheel++; note('wheel dy=' + Math.round(e.deltaY) + ' dx=' + Math.round(e.deltaX)); }, { passive: true });
+  document.addEventListener('contextmenu', function (e) { S.ctx++; note('contextmenu'); e.preventDefault(); });
+  document.addEventListener('touchstart', function () { S.touch++; note('touchstart'); }, { passive: true });
+  window.addEventListener('blur', function () { S.blur++; note('janela perdeu o foco'); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) { S.hidden++; note('página oculta'); } });
+  document.addEventListener('focusin', function () { S.focusMoves++; });
+
+  function list(arr, max) { return arr.length ? arr.slice(0, max).join('  ') + (arr.length > max ? '  +' + (arr.length - max) : '') : '—'; }
+
+  var grid = document.getElementById('grid');
+  var verdictEl = document.getElementById('verdict');
+  var lastEl = document.getElementById('last');
+  var prev = '';
+
+  function render() {
+    var padIds = setKeys(S.padIds), btns = setKeys(S.btns).sort(function (a, b) { return a - b; }), axes = setKeys(S.axesMoved);
+    var pointer = S.pMove + S.mMove > 0;
+    var v, cls;
+    if (!hasGet) { v = 'Gamepad API ausente neste navegador.'; cls = 'bad'; }
+    else if (padIds.length) { v = 'GAMEPAD API OK: a página lê o controle (' + btns.length + ' botões vistos).'; cls = 'ok'; }
+    else if (S.keys && pointer) { v = 'Sem Gamepad API: controle chega como TECLAS e PONTEIRO.'; cls = 'warn'; }
+    else if (S.keys) { v = 'Sem Gamepad API: controle chega só como TECLAS.'; cls = 'warn'; }
+    else if (pointer || S.down) { v = 'Sem Gamepad API: controle vira só PONTEIRO (cursor).'; cls = 'bad'; }
+    else { v = 'Aguardando o controle… aperte botões e mexa os analógicos.'; cls = 'warn'; }
+
+    var rows = [
+      ['Navegador', browser + (os ? ' · ' + os : '') + (model ? ' · ' + model : ''), true],
+      ['API getGamepads', hasGet ? 'sim' : 'não'],
+      ['gamepadconnected', S.padEvents + 'x'],
+      ['Controles lidos', padIds.length ? padIds.length + ' · ' + padIds[0].slice(0, 28) : '0'],
+      ['mapping', S.mapping || '—'],
+      ['Botões (API)', list(btns, 17)],
+      ['Eixos (API)', list(axes, 6)],
+      ['Teclas', S.keys + 'x'],
+      ['Foco movido', S.focusMoves + 'x'],
+      ['Teclas vistas', list(S.keyList, 10), true],
+      ['Ponteiro', 'pointer ' + S.pMove + ' · mouse ' + S.mMove],
+      ['Tipo ponteiro', list(setKeys(S.pTypes), 3)],
+      ['Cliques', 'down ' + S.down + ' · click ' + S.clicks + ' · botões ' + list(setKeys(S.buttons), 3)],
+      ['Roda / menu', 'wheel ' + S.wheel + ' · ctx ' + S.ctx + ' · toque ' + S.touch],
+      ['Saiu da página', 'blur ' + S.blur + ' · oculta ' + S.hidden]
+    ];
+    var html = rows.map(function (r) {
+      return '<div class="row' + (r[2] ? ' wide' : '') + '"><span class="k">' + r[0] + '</span><span class="v">' + esc(r[1]) + '</span></div>';
     }).join('');
+    var key = v + html + S.last;
+    if (key !== prev) {
+      prev = key;
+      verdictEl.className = 'verdict ' + cls;
+      verdictEl.textContent = v;
+      grid.innerHTML = html;
+      lastEl.textContent = 'Último evento: ' + S.last;
+    }
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
-  var verdictEl = document.getElementById('verdict');
-  var seenPad = false, seenKey = false;
-  function verdict() {
-    if (!hasGet) { verdictEl.className = 'verdict bad'; verdictEl.textContent = 'Gamepad API indisponível neste navegador.'; return; }
-    if (seenPad) { verdictEl.className = 'verdict ok'; verdictEl.textContent = 'Funciona: a Gamepad API leu o controle.'; return; }
-    verdictEl.className = 'verdict warn';
-    verdictEl.textContent = seenKey
-      ? 'A API existe, mas o controle só chegou como teclas (veja os eventos). Aperte botões do controle para confirmar.'
-      : 'A API existe, mas nenhum controle apareceu ainda. Aperte um botão do controle.';
-  }
-
-  var logEl = document.getElementById('log');
-  function log(msg) {
-    var t = new Date();
-    var li = document.createElement('li');
-    li.textContent = ('0' + t.getMinutes()).slice(-2) + ':' + ('0' + t.getSeconds()).slice(-2) + '  ' + msg;
-    logEl.insertBefore(li, logEl.firstChild);
-    while (logEl.children.length > 12) logEl.removeChild(logEl.lastChild);
-  }
-
-  window.addEventListener('gamepadconnected', function (e) { log('gamepadconnected: ' + (e.gamepad && e.gamepad.id)); });
-  window.addEventListener('gamepaddisconnected', function (e) { log('gamepaddisconnected: ' + (e.gamepad && e.gamepad.id)); });
-  /* Mostra também as teclas: no Silk o controle pode chegar só como eventos de teclado */
-  document.addEventListener('keydown', function (e) {
-    seenKey = true;
-    log('keydown key=' + e.key + ' keyCode=' + e.keyCode);
-    verdict();
-  });
-
-  var padsEl = document.getElementById('pads');
-  var lastHTML = '';
   function frame() {
     if (hasGet) {
-      var list = getPads(), html = '', vib = null;
-      for (var i = 0; i < list.length; i++) {
-        var p = list[i];
+      var list2 = getPads(), n = 0;
+      for (var i = 0; i < list2.length; i++) {
+        var p = list2[i];
         if (!p) continue;
-        seenPad = true;
-        if (p.vibrationActuator) vib = 'sim';
-        var btns = '';
+        n++;
+        S.padIds[p.id] = 1;
+        if (p.mapping) S.mapping = p.mapping;
         for (var b = 0; b < p.buttons.length; b++) {
           var bt = p.buttons[b];
-          var on = typeof bt === 'object' ? bt.pressed : bt === 1;
-          btns += '<span class="' + (on ? 'on' : '') + '">' + b + '</span>';
+          if (typeof bt === 'object' ? bt.pressed : bt === 1) { if (!S.btns[b]) note('API botão ' + b); S.btns[b] = 1; }
         }
-        var axes = [];
-        for (var a = 0; a < p.axes.length; a++) axes.push('e' + a + ' ' + (p.axes[a] >= 0 ? '+' : '') + p.axes[a].toFixed(2));
-        html += '<div class="pad"><div class="id">#' + p.index + ' ' + esc(p.id) + '</div>' +
-          '<div class="hint" style="margin:0 0 1vh">mapping: ' + esc(p.mapping || '(vazio)') + ' · ' + (p.connected === false ? 'desconectado' : 'conectado') + '</div>' +
-          '<div class="btns">' + btns + '</div><div class="axes">' + axes.join(' · ') + '</div></div>';
+        for (var a = 0; a < p.axes.length; a++) if (Math.abs(p.axes[a]) > 0.5) S.axesMoved['e' + a] = 1;
       }
-      if (!html) html = '<p class="hint">Nenhum ainda.</p>';
-      if (html !== lastHTML) { padsEl.innerHTML = html; lastHTML = html; verdict(); }
-      var v = vib || (seenPad ? 'não' : '—');
-      if (caps[6][1] !== v) { caps[6][1] = v; renderCaps(); }
+      if (n > S.maxPads) S.maxPads = n;
     }
-    (window.requestAnimationFrame || function (f) { return setTimeout(f, 16); })(frame);
+    render();
+    (window.requestAnimationFrame || function (f) { return setTimeout(f, 50); })(frame);
   }
-
-  renderCaps();
-  verdict();
-  log('página carregada');
   frame();
-  document.getElementById('back').focus();
 })();
 </script>
 </html>
