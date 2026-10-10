@@ -49,7 +49,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,computer,foggy,gamepad,graphic_eq,humidity_percentage,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,pause,play_arrow,rainy,rainy_heavy,rainy_light,replay,skip_next,skip_previous,sports_soccer,stop,theater_comedy,thermostat,thunderstorm,trending_up,tv,umbrella,volume_off,water_drop,wb_twilight,weather_snowy&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,computer,foggy,gamepad,graphic_eq,humidity_percentage,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,pause,play_arrow,rainy,rainy_heavy,rainy_light,replay,skip_next,skip_previous,smartphone,sports_soccer,stop,theater_comedy,thermostat,thunderstorm,trending_up,tv,umbrella,volume_off,water_drop,wb_twilight,weather_snowy&display=block">
 <style>
 /* Layout: tela de TV 1920×1080 em rem (1rem = 16px em 1080p), margem de segurança de 5%, header sem fundo,
    destaque em duas colunas (notícia + previsão do tempo) e rails que deslizam na vertical */
@@ -195,6 +195,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* Tela cheia: botão só com ícone no fim da nav */
 .pill.fs { width: 3.5rem; padding: 0; justify-content: center; color: var(--accent); }
 .pill.fs .ms { font-size: 2rem; }
+/* Controle pelo celular: ícone só; fica azul quando um celular já está pareado */
+.pill.rm { width: 3.5rem; padding: 0; justify-content: center; }
+.pill.rm .ms { font-size: 2rem; }
+.pill.rm[aria-pressed="true"] { color: var(--accent); }
 html:not(.pointer) .pill:focus { background: var(--focus); color: var(--on-focus); transform: scale(1.06); }
 
 /* Área de linhas */
@@ -573,6 +577,17 @@ html.pointer .rd-play:hover { color: #06121F !important; background: #8CC6FF; }
 @keyframes rd-kb { from { transform: scale(1); } to { transform: scale(1.06); } }
 
 /* Previsão completa */
+/* Pareamento do controle pelo celular: QR à esquerda, passos e código à direita */
+.rm-body { display: flex; align-items: center; margin-top: 4rem; }
+.rm-qr { flex: 0 0 26rem; width: 26rem; height: 26rem; box-sizing: border-box; padding: 1.5rem; border-radius: 1.5rem; background: #FFFFFF; }
+.rm-qr svg { display: block; width: 100%; height: 100%; }
+.rm-info { margin-left: 5rem; min-width: 0; }
+.rm-step { margin: 0 0 1.25rem; font-size: var(--size-body); line-height: 1.35; color: var(--text-title); }
+.rm-step b { color: var(--accent); font-weight: 600; }
+.rm-code { margin: 0 0 2.5rem; font-family: var(--font-title); font-weight: 700; font-size: 7rem; line-height: 1; letter-spacing: .15em; color: var(--text-title); font-variant-numeric: tabular-nums; }
+.rm-status { display: flex; align-items: center; margin: 0; font-size: var(--size-meta); color: var(--text-meta); }
+.rm-status .ms { font-size: 2rem; margin-right: .75rem; }
+.rm-status.ok { color: var(--accent); }
 .fc { display: flex; flex-direction: column; }
 .fc-top { display: flex; align-items: center; white-space: nowrap; }
 .fc-top .fc-title { margin: 0 0 0 1rem; font-family: var(--font-title); font-weight: 700; font-size: 2.5rem; color: var(--text-title); }
@@ -628,7 +643,8 @@ html.pointer .rd-play:hover { color: #06121F !important; background: #8CC6FF; }
 /* Espaçamento sem `gap` em flexbox (que só existe a partir do Chromium 84, ausente em muitas Smart TVs) */
 .top > * + * { margin-left: 1rem; }
 .nav > * + * { margin-left: .5rem; }
-.nav > .fs { margin-left: 1rem; }
+.nav > .rm { margin-left: 1rem; }
+.nav > .fs { margin-left: .5rem; }
 .clock > * + * { margin-left: 1.25rem; }
 .weather > * + * { margin-left: .75rem; }
 .kicker > * + * { margin-left: .75rem; }
@@ -815,6 +831,7 @@ html.unsupported .unsupported-screen {
 }
 .unsupported-screen .us-url small { display: block; margin-bottom: .375rem; font-size: 1.125rem; color: var(--text-meta); }
 .unsupported-screen .us-note { font-size: 1.25rem; color: var(--text-meta); }
+.unsupported-screen .us-remote { color: var(--accent); font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
@@ -851,6 +868,7 @@ html.unsupported .unsupported-screen {
   <p>Abra o endereço abaixo no navegador do seu computador ou da sua TV:</p>
   <div class="us-url"><small>Endereço</small><span id="usUrl">amarildo-correa.github.io/tv</span></div>
   <p class="us-note">Se você está num computador e vê esta mensagem, desative o modo de site para celular do navegador e recarregue a página.</p>
+  <p class="us-note"><a class="us-remote" href="c">Usar este celular como controle remoto da TV</a></p>
 </main>
 
 <div class="app" id="app">
@@ -936,6 +954,24 @@ html.unsupported .unsupported-screen {
     <span class="upd" id="fcUpd"></span>
   </div>
   <div id="fcBody"></div>
+</div>
+
+<div class="overlay fc" id="remote" role="dialog" aria-modal="true" aria-labelledby="rmTitle" hidden>
+  <div class="fc-top">
+    <button class="back" id="rmBack" type="button">
+      <span class="ms" aria-hidden="true">arrow_back</span>
+      Voltar
+    </button>
+    <h2 class="fc-title" id="rmTitle">Controle pelo celular</h2>
+  </div>
+  <div class="rm-body">
+    <div class="rm-qr" id="rmQr" aria-hidden="true"></div>
+    <div class="rm-info">
+      <p class="rm-step">Aponte a câmera do celular para o QR code ou abra <b id="rmUrl">—</b> e digite o código:</p>
+      <div class="rm-code" id="rmCode">—</div>
+      <p class="rm-status" id="rmStatus" role="status" aria-live="polite"><span class="ms" aria-hidden="true">cloud_sync</span><span id="rmStatusText">Conectando…</span></p>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1200,7 +1236,7 @@ html.unsupported .unsupported-screen {
     navEl.innerHTML = SECTIONS.map(function (s) {
       return '<button class="pill" type="button" data-section="' + s.key + '">' + s.key + '</button>';
     }).join('') +
-      '<a class="pill" href="g" style="text-decoration:none" aria-label="Teste controle pelo celular"><span class="ms" aria-hidden="true">gamepad</span></a>' + /* TESTE-GAMEPAD (descartável): remover esta linha e g.html */
+      '<button class="pill rm" id="rmBtn" type="button" aria-label="Controle pelo celular" aria-pressed="false"><span class="ms" aria-hidden="true">smartphone</span></button>' +
       '<button class="pill fs" id="fsBtn" type="button" aria-label="Tela cheia" aria-pressed="false"><span class="ms" aria-hidden="true">open_in_full</span></button>';
     setupFullscreen();
     navItems = Array.prototype.slice.call(navEl.querySelectorAll('.pill:not([hidden])'));
@@ -1963,7 +1999,9 @@ html.unsupported .unsupported-screen {
   /* 4 = Voltar do controle do Fire TV quando a página roda num WebView */
   var BACK_CODES = [461, 10009, 8, 27, 4];
   var KEY_DIRS = { 37: 'ArrowLeft', 38: 'ArrowUp', 39: 'ArrowRight', 40: 'ArrowDown' };
-  document.addEventListener('keydown', function (e) {
+  /* Função nomeada: o controle pelo celular reaproveita o mesmo caminho (ver remoteKey) */
+  document.addEventListener('keydown', onKey);
+  function onKey(e) {
     var map = { ArrowRight: 'right', ArrowLeft: 'left', ArrowDown: 'down', ArrowUp: 'up' };
     var key = map[e.key] ? e.key : (KEY_DIRS[e.keyCode] || e.key);
     var isBack = BACK_KEYS.indexOf(e.key) !== -1 || BACK_CODES.indexOf(e.keyCode) !== -1;
@@ -2001,7 +2039,156 @@ html.unsupported .unsupported-screen {
     }
     if (map[key]) { e.preventDefault(); move(map[key]); return; }
     if (isBack && cur !== 0) { e.preventDefault(); focusRow(0); }
-  });
+  }
+
+  /* ===== Controle pelo celular =====
+     A TV assina um canal num broker MQTT público (código de 5 letras guardado no aparelho). O celular abre /c,
+     publica comandos e a TV os converte em teclas do controle, passando pelo onKey: a navegação espacial,
+     o modo cursor do Silk e as telas sobrepostas funcionam exatamente como com o controle físico.
+     As bibliotecas só carregam quando a tela de pareamento é aberta ou quando já houve um celular pareado. */
+  var RM_BROKERS = [
+    { name: 'EMQX', url: 'wss://broker.emqx.io:8084/mqtt' },
+    { name: 'HiveMQ', url: 'wss://broker.hivemq.com:8884/mqtt' }
+  ];
+  var RM_PREFIX = 'readontv/';
+  var RM_LIBS = [
+    'https://cdn.jsdelivr.net/npm/mqtt@5.16.0/dist/mqtt.min.js',
+    'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js'
+  ];
+  var RM_KEYS = {
+    up: ['ArrowUp', 38], down: ['ArrowDown', 40], left: ['ArrowLeft', 37], right: ['ArrowRight', 39],
+    ok: ['Enter', 13], back: ['Escape', 27], play: ['MediaPlayPause', 179]
+  };
+  var remoteEl = document.getElementById('remote');
+  var rmBtn = null; /* criado no build() da nav: ligado em rmInit() */
+  var rm = { code: null, bi: 0, client: null, connected: false, starting: false, failTimer: null, paired: false };
+  function rmStore(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (err) { return null; } }
+  (function () {
+    var ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var c = String(rmStore('rot-remote-code') || '');
+    if (!/^[A-Z0-9]{5}$/.test(c)) {
+      c = '';
+      for (var i = 0; i < 5; i++) c += ALPHA[Math.floor(Math.random() * ALPHA.length)];
+      rmStore('rot-remote-code', c);
+    }
+    rm.code = c;
+    rm.paired = rmStore('rot-remote-paired') === '1';
+  })();
+
+  function rmPhoneUrl() {
+    return location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '') + 'c?c=' + rm.code + '&b=' + rm.bi;
+  }
+  function rmStatus(text, ok) {
+    document.getElementById('rmStatusText').textContent = text;
+    var el = document.getElementById('rmStatus');
+    el.className = 'rm-status' + (ok ? ' ok' : '');
+    el.querySelector('.ms').textContent = ok ? 'smartphone' : 'cloud_sync';
+  }
+  function rmRender() {
+    var url = rmPhoneUrl();
+    document.getElementById('rmCode').textContent = rm.code;
+    document.getElementById('rmUrl').textContent = url.replace(/^https?:\/\//, '').replace(/\?.*$/, '');
+    var box = document.getElementById('rmQr');
+    if (typeof qrcode === 'undefined') { box.innerHTML = ''; return; }
+    try {
+      var q = qrcode(0, 'M'); q.addData(url); q.make();
+      box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    } catch (err) { box.innerHTML = ''; }
+  }
+  function rmLoadLibs(done) {
+    var i = 0;
+    (function next() {
+      if (i >= RM_LIBS.length) { done(true); return; }
+      var s = document.createElement('script');
+      s.src = RM_LIBS[i++];
+      s.onload = next;
+      s.onerror = function () { done(false); };
+      document.head.appendChild(s);
+    })();
+  }
+  function rmStart() {
+    if (rm.client || rm.starting) return;
+    rm.starting = true;
+    rmStatus('Conectando…', false);
+    rmLoadLibs(function (ok) {
+      rm.starting = false;
+      if (!ok || typeof mqtt === 'undefined') { rmStatus('Não foi possível carregar o controle. Verifique a internet.', false); return; }
+      rmRender();
+      rmConnect();
+    });
+  }
+  function rmConnect() {
+    if (rm.client) { try { rm.client.end(true); } catch (err) {} }
+    rm.connected = false;
+    rmRender();
+    var c = rm.client = mqtt.connect(RM_BROKERS[rm.bi].url, {
+      clientId: 'rotv-tv-' + Math.random().toString(36).slice(2, 10),
+      clean: true, connectTimeout: 8000, reconnectPeriod: 2000, keepalive: 30, timerVariant: 'native'
+    });
+    clearTimeout(rm.failTimer);
+    /* Broker sem resposta em 10 s: troca pelo próximo e atualiza o QR (o índice vai no link do celular) */
+    rm.failTimer = setTimeout(function () {
+      if (!rm.connected) { rm.bi = (rm.bi + 1) % RM_BROKERS.length; rmConnect(); }
+    }, 10000);
+    c.on('connect', function () {
+      rm.connected = true;
+      clearTimeout(rm.failTimer);
+      c.subscribe(RM_PREFIX + rm.code + '/cmd', { qos: 0 });
+      rmStatus(rm.paired ? 'Pronto. Use o celular para navegar.' : 'Aguardando o celular…', rm.paired);
+    });
+    c.on('reconnect', function () { rmStatus('Reconectando…', false); });
+    c.on('offline', function () { rmStatus('Sem conexão com a internet', false); });
+    c.on('message', function (topic, payload) {
+      var m;
+      try { m = JSON.parse(String(payload)); } catch (err) { return; }
+      if (!m || !RM_KEYS[m.k]) return;
+      /* Confirmação para o celular medir a ida e volta */
+      c.publish(RM_PREFIX + rm.code + '/ack', JSON.stringify({ n: m.n }), { qos: 0 });
+      remoteCommand(m.k);
+    });
+  }
+  function remoteCommand(k) {
+    if (!rm.paired) {
+      rm.paired = true;
+      rmStore('rot-remote-paired', '1');
+      if (rmBtn) rmBtn.setAttribute('aria-pressed', 'true');
+    }
+    rmStatus('Celular conectado', true);
+    /* O primeiro comando com a tela de pareamento aberta só a fecha */
+    if (overlay === remoteEl) { requestClose(); return; }
+    remoteKey(k);
+  }
+  /* Converte o comando numa tecla e passa pelo mesmo onKey do controle físico */
+  function remoteKey(k) {
+    var def = RM_KEYS[k];
+    var prevented = false;
+    var ev = {
+      key: def[0], keyCode: def[1], shiftKey: false,
+      target: document.activeElement || document.body,
+      preventDefault: function () { prevented = true; }
+    };
+    /* No modo cursor, setas e OK primeiro trazem o foco de volta, como a primeira seta do controle */
+    if (mode === 'pointer' && k === 'ok') { setMode('kbd'); return; }
+    onKey(ev);
+    /* OK num <button> (pílulas, barra de áudio): o Enter sintético não clica sozinho */
+    if (k === 'ok' && !prevented && mode === 'kbd') {
+      var t = document.activeElement;
+      if (t && t !== document.body && typeof t.click === 'function') t.click();
+    }
+  }
+  function rmInit() {
+    rmBtn = document.getElementById('rmBtn');
+    if (rm.paired) rmBtn.setAttribute('aria-pressed', 'true');
+    rmBtn.addEventListener('click', function () {
+      openOverlay(remoteEl, rmBtn);
+      rmRender();
+      if (rm.client) rmStatus(rm.connected ? (rm.paired ? 'Pronto. Use o celular para navegar.' : 'Aguardando o celular…') : 'Conectando…', rm.connected && rm.paired);
+      rmStart();
+    });
+    document.getElementById('rmBack').addEventListener('click', requestClose);
+    /* Já pareado antes: reconecta em segundo plano depois que a página carregar */
+    if (rm.paired) window.addEventListener('load', function () { setTimeout(rmStart, 1500); });
+  }
 
   /* Data e hora */
   var TZ = 'America/Sao_Paulo';
@@ -2177,6 +2364,7 @@ html.unsupported .unsupported-screen {
 
   /* Início */
   build();
+  rmInit();
   tick();
   setInterval(tick, 15000);
   loadWeather();
