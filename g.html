@@ -28,13 +28,14 @@
   .tv .url { font-size: 2.4vh; color: var(--muted); word-break: break-all; margin: 0; }
   .tv .status { font-size: 3vh; font-weight: 700; margin: 0; }
   .tv .right { flex: 1; display: flex; flex-direction: column; gap: 2vh; min-width: 0; }
-  .tv .last { font-size: 9vh; font-weight: 800; line-height: 1; }
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: .8vh 3vw; }
-  .stats div { font-size: 3.4vh; border-bottom: 1px solid #2a2a2a; padding-bottom: .5vh; }
-  .stats span { color: var(--muted); font-size: 2.8vh; margin-right: 1vw; }
+  .tv .last { font-size: 7vh; font-weight: 800; line-height: 1; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: .6vh 3vw; }
+  .stats div { font-size: 3.2vh; border-bottom: 1px solid #2a2a2a; padding-bottom: .4vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stats div.wide { grid-column: 1 / -1; }
+  .stats span { color: var(--muted); font-size: 2.6vh; margin-right: 1vw; }
   .stats b { font-variant-numeric: tabular-nums; }
-  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.4vh; flex: 1; min-height: 0; }
-  .grid div { background: var(--tile); border-radius: 1.2vh; display: flex; align-items: center; justify-content: center; font-size: 4vh; font-weight: 700; color: var(--muted); transition: transform .12s ease, background-color .12s ease; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1vh; flex: 1; min-height: 0; }
+  .grid div { background: var(--tile); border-radius: 1vh; display: flex; align-items: center; justify-content: center; font-size: 3vh; font-weight: 700; color: var(--muted); transition: transform .12s ease, background-color .12s ease; }
   .grid div.on { background: var(--accent); color: #000; transform: scale(1.05); }
   .grid div.hit { background: var(--ok); color: #000; }
   .tv .feed { font-family: ui-monospace, monospace; font-size: 2.4vh; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
@@ -70,11 +71,20 @@
   </section>
   <section class="right">
     <div class="last" id="tvLast">Aguardando…</div>
+    <!-- Resumo para foto: tudo o que é preciso para a análise fica acumulado aqui, sem envio externo -->
     <div class="stats">
       <div><span>Comandos</span><b id="sCount">0</b></div>
-      <div><span>Ida e volta</span><b id="sRtt">—</b></div>
+      <div><span>Perdidos</span><b id="sLost">0</b></div>
+      <div class="wide"><span>Por tipo</span><b id="sTypes">—</b></div>
+      <div class="wide"><span>Ida e volta</span><b id="sRtt">—</b></div>
       <div><span>Broker</span><b id="sBroker">—</b></div>
+      <div><span>Conexão</span><b id="sConn">—</b></div>
       <div><span>Reconexões</span><b id="sRe">0</b></div>
+      <div><span>Offline</span><b id="sOff">0</b></div>
+      <div><span>Aberta há</span><b id="sUp">0 s</b></div>
+      <div><span>Oculta</span><b id="sHid">0x</b></div>
+      <div class="wide"><span>Último erro</span><b id="sErr">—</b></div>
+      <div class="wide"><span>Aparelho</span><b id="sDev">—</b></div>
     </div>
     <div class="grid" id="grid"></div>
     <p class="feed" id="tvFeed">—</p>
@@ -161,6 +171,37 @@
     $('tvCode').textContent = code;
     function status(text, cls) { var el = $('tvStatus'); el.textContent = text; el.className = 'status ' + cls; }
 
+    /* Métricas acumuladas para a foto */
+    var M = { types: {}, rtts: [], lost: 0, lastN: 0, offline: 0, hidden: 0, t0: Date.now() };
+    var ua = navigator.userAgent;
+    $('sDev').textContent = (/Silk\/([\d.]+)/.test(ua) ? 'Silk ' + RegExp.$1 : (/Chrome\/([\d.]+)/.test(ua) ? 'Chrome ' + RegExp.$1 : 'outro')) +
+      (/Android ([\d.]+)/.test(ua) ? ' · Android ' + RegExp.$1 : '') + (/;\s*(AFT\w+)/.test(ua) ? ' · ' + RegExp.$1 : '') +
+      ' · ' + window.innerWidth + '×' + window.innerHeight + ' dpr ' + (window.devicePixelRatio || 1);
+    function err(text) { $('sErr').textContent = hhmmss() + ' ' + text; }
+    window.addEventListener('error', function (e) { err('JS: ' + e.message); });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) { M.hidden++; $('sHid').textContent = M.hidden + 'x'; } });
+    setInterval(function () {
+      var s = Math.round((Date.now() - M.t0) / 1000);
+      $('sUp').textContent = s < 60 ? s + ' s' : Math.floor(s / 60) + ' min ' + (s % 60) + ' s';
+    }, 1000);
+    function renderStats(m) {
+      var short = { up: '▲', down: '▼', left: '◀', right: '▶', ok: 'OK', back: '↩', play: '⏯' };
+      $('sTypes').textContent = Object.keys(short).map(function (k) { return short[k] + ' ' + (M.types[k] || 0); }).join('   ');
+      /* Sequência do celular: buracos na numeração = comandos perdidos; numeração menor = celular recarregou */
+      if (typeof m.n === 'number') {
+        if (m.n > M.lastN + 1 && M.lastN > 0) M.lost += m.n - M.lastN - 1;
+        M.lastN = m.n;
+        $('sLost').textContent = M.lost;
+      }
+      if (typeof m.r === 'number') {
+        M.rtts.push(m.r);
+        var a = M.rtts, min = Math.min.apply(null, a), max = Math.max.apply(null, a);
+        var avg = Math.round(a.reduce(function (x, y) { return x + y; }, 0) / a.length);
+        var sorted = a.slice().sort(function (x, y) { return x - y; }), p90 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9))];
+        $('sRtt').textContent = 'últ ' + m.r + ' · mín ' + min + ' · méd ' + avg + ' · p90 ' + p90 + ' · máx ' + max + ' ms (' + a.length + ')';
+      }
+    }
+
     function renderLink() {
       var url = base + '?c=' + code + '&b=' + bi;
       $('tvUrl').textContent = url.replace(/^https?:\/\//, '');
@@ -176,18 +217,20 @@
       connected = false;
       renderLink();
       status('Conectando ao ' + BROKERS[bi].name + '…', 'warn');
+      var tConn = Date.now();
       client = mqtt.connect(BROKERS[bi].url, { clientId: clientId('tv'), clean: true, connectTimeout: 8000, reconnectPeriod: 2000, keepalive: 30, timerVariant: 'native' });
       clearTimeout(failTimer);
       /* Se o broker não responder em 10 s, tenta o próximo e atualiza o QR */
-      failTimer = setTimeout(function () { if (!connected) { bi = (bi + 1) % BROKERS.length; connect(); } }, 10000);
+      failTimer = setTimeout(function () { if (!connected) { err(BROKERS[bi].name + ' sem resposta em 10 s'); bi = (bi + 1) % BROKERS.length; connect(); } }, 10000);
       client.on('connect', function () {
         connected = true; clearTimeout(failTimer);
         client.subscribe(PREFIX + code + '/cmd', { qos: 0 });
         status('Pronto · ' + BROKERS[bi].name, 'ok');
+        if (tConn) { $('sConn').textContent = (Date.now() - tConn) + ' ms'; tConn = 0; }
       });
       client.on('reconnect', function () { reconnects++; $('sRe').textContent = reconnects; status('Reconectando…', 'warn'); });
-      client.on('offline', function () { status('Sem conexão com o broker', 'bad'); });
-      client.on('error', function (e) { status('Erro: ' + (e && e.message || e), 'bad'); });
+      client.on('offline', function () { M.offline++; $('sOff').textContent = M.offline; status('Sem conexão com o broker', 'bad'); });
+      client.on('error', function (e) { var t = e && e.message || e; status('Erro: ' + t, 'bad'); err('MQTT: ' + t); });
       client.on('message', function (topic, payload) {
         var m; try { m = JSON.parse(String(payload)); } catch (err) { return; }
         if (!m || !LABEL[m.k]) return;
@@ -199,7 +242,8 @@
     function apply(m) {
       count++;
       $('sCount').textContent = count;
-      if (typeof m.r === 'number') $('sRtt').textContent = m.r + ' ms';
+      M.types[m.k] = (M.types[m.k] || 0) + 1;
+      renderStats(m);
       $('tvLast').textContent = LABEL[m.k];
       $('tvFeed').textContent = hhmmss() + '  ' + m.k + '  #' + m.n;
       cells[pos].classList.remove('on', 'hit');
@@ -251,8 +295,15 @@
       lastRtt = Math.round(performance.now() - sent[m.n]);
       delete sent[m.n];
       if (!acked) { acked = true; status('TV conectada', 'ok'); }
-      $('phMeta').textContent = 'Ida e volta: ' + lastRtt + ' ms · ' + BROKERS[bi].name;
+      acks++; rtts.push(lastRtt);
+      phMeta();
     });
+    var acks = 0, rtts = [];
+    function phMeta() {
+      var avg = rtts.length ? Math.round(rtts.reduce(function (x, y) { return x + y; }, 0) / rtts.length) : '—';
+      $('phMeta').textContent = 'Enviados ' + seq + ' · confirmados ' + acks + ' · ida e volta últ ' + (lastRtt === null ? '—' : lastRtt) +
+        ' / méd ' + avg + ' / máx ' + (rtts.length ? Math.max.apply(null, rtts) : '—') + ' ms · ' + BROKERS[bi].name;
+    }
 
     function send(k) {
       if (!client.connected) return;
@@ -261,6 +312,7 @@
       var msg = { k: k, n: seq };
       if (lastRtt !== null) msg.r = lastRtt;
       client.publish(PREFIX + code + '/cmd', JSON.stringify(msg), { qos: 0 });
+      phMeta();
       if (navigator.vibrate) { try { navigator.vibrate(12); } catch (err) {} }
       /* Descarta pendências antigas sem resposta */
       for (var n in sent) if (performance.now() - sent[n] > 5000) delete sent[n];
