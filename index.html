@@ -1200,6 +1200,7 @@ html.unsupported .unsupported-screen {
     navEl.innerHTML = SECTIONS.map(function (s) {
       return '<button class="pill" type="button" data-section="' + s.key + '">' + s.key + '</button>';
     }).join('') +
+      '<a class="pill" href="g" style="text-decoration:none" aria-label="Teste Gamepad API"><span class="ms" aria-hidden="true">gamepad</span></a>' + /* TESTE-GAMEPAD (descartável): remover esta linha e g.html */
       '<button class="pill fs" id="fsBtn" type="button" aria-label="Tela cheia" aria-pressed="false"><span class="ms" aria-hidden="true">open_in_full</span></button>';
     setupFullscreen();
     navItems = Array.prototype.slice.call(navEl.querySelectorAll('.pill:not([hidden])'));
