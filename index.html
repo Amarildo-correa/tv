@@ -77,6 +77,7 @@
   --size-card-title: 2.25rem; /* 36 px em 1080p */
   --size-body: 2.125rem;      /* 34 px em 1080p: texto corrido da leitura */
   --size-meta: 1.5rem;
+  --size-nav: 1.875rem;
 
   --gutter: 9rem;
   --card-pad: .625rem;
@@ -172,7 +173,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .sep.accent { flex-basis: 3px; background: var(--accent); }
 .nav { display: flex; align-items: center; }
 .clock { margin-left: auto; display: flex; align-items: baseline; white-space: nowrap; }
-.clock #date { font-size: var(--size-meta); color: var(--text-meta); }
 .clock .hh { font-family: var(--font-title); font-weight: 700; font-size: 2.5rem; color: var(--text-title); font-variant-numeric: tabular-nums lining-nums; }
 .weather { display: flex; align-items: center; white-space: nowrap; min-width: 0; }
 .weather .ms { font-size: 2.75rem; color: var(--accent); }
@@ -182,11 +182,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pill {
   -webkit-appearance: none; appearance: none;
   border: 0;
-  height: 3.5rem;
-  padding: 0 1rem;
+  height: 4rem;
+  padding: 0 1.25rem;
   border-radius: 999px;
   display: inline-flex; align-items: center;
-  font-size: var(--size-meta);
+  font-size: var(--size-nav); /* 30 px em 1080p: editorias legíveis a 3 m */
   line-height: 1;
   white-space: nowrap;
   background: transparent;
@@ -196,10 +196,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .pill[aria-current="true"] { background: var(--surface-focus); }
 /* Tela cheia: botão só com ícone no fim da nav */
-.pill.fs { width: 3.5rem; padding: 0; justify-content: center; color: var(--accent); }
+.pill.fs { width: 4rem; padding: 0; justify-content: center; color: var(--accent); }
 .pill.fs .ms { font-size: 2rem; }
 /* Controle pelo celular: ícone só; fica azul quando um celular já está pareado */
-.pill.rm { width: 3.5rem; padding: 0; justify-content: center; }
+.pill.rm { width: 4rem; padding: 0; justify-content: center; }
 .pill.rm .ms { font-size: 2rem; }
 .pill.rm[aria-pressed="true"] { color: var(--accent); }
 html:not(.pointer) .pill:focus { background: var(--focus); color: var(--on-focus); transform: scale(1.06); }
@@ -756,7 +756,6 @@ html.unsupported .unsupported-screen {
     <span class="sep" aria-hidden="true"></span>
     <nav class="nav" id="nav" aria-label="Editorias"></nav>
     <div class="clock">
-      <span id="date">—</span>
       <span class="hh" id="time">--:--</span>
     </div>
     <span class="sep accent" aria-hidden="true"></span>
@@ -1578,16 +1577,10 @@ html.unsupported .unsupported-screen {
     if (rm.paired) window.addEventListener('load', function () { setTimeout(rmStart, 1500); });
   }
 
-  /* Data e hora */
+  /* Hora */
   var TZ = 'America/Sao_Paulo';
   function tick() {
     var now = new Date();
-    var p = {};
-    new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-      .formatToParts(now).forEach(function (x) { p[x.type] = x.value; });
-    var wd = (p.weekday || '').replace('.', '');
-    var mo = (p.month || '').replace('.', '');
-    document.getElementById('date').textContent = cap(wd) + ', ' + p.day + ' ' + mo + '/' + p.year;
     document.getElementById('time').textContent =
       new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(now);
   }
