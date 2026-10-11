@@ -7,7 +7,14 @@
       body: [
         'A ponte sobre o Arroio Luiz Rau foi liberada no fim da tarde desta quinta-feira, depois de quatro meses de obras de reforço da estrutura.',
         'Com a liberação, a Avenida Pedro Adams Filho volta a ter mão dupla no trecho entre a Rua Bento Gonçalves e a Rua General Osório. Agentes de trânsito acompanham o fluxo até o fim de semana.',
-        'As linhas de ônibus que usavam desvio pela Rua Lima e Silva retomam o trajeto original a partir das 18h.'
+        'As linhas de ônibus que usavam desvio pela Rua Lima e Silva retomam o trajeto original a partir das 18h.',
+        'A obra substituiu os aparelhos de apoio da ponte, reforçou os pilares com uma nova camada de concreto e trocou todo o guarda-corpo, que apresentava pontos de ferrugem. O pavimento também foi refeito, com drenagem nova nas duas cabeceiras para evitar o acúmulo de água em dias de chuva forte.',
+        'Segundo a Secretaria de Obras, a estrutura tinha mais de quarenta anos e nunca havia passado por uma reforma completa. Uma vistoria feita no início do ano apontou fissuras nas vigas e recomendou a intervenção antes do inverno, quando o nível do arroio costuma subir.',
+        'O investimento foi de cerca de R$ 2,8 milhões, com recursos do município e de um convênio com o governo do estado. A previsão inicial era entregar a ponte em três meses, mas as chuvas de agosto atrasaram a concretagem dos pilares em quase três semanas.',
+        'Durante a obra, o trânsito no Centro ficou mais lento nos horários de pico, principalmente na Rua Bento Gonçalves, que recebeu boa parte do fluxo desviado. Comerciantes da região relataram queda no movimento e comemoraram a reabertura.',
+        'A ponte também ganhou calçadas mais largas dos dois lados e iluminação em LED. A prefeitura afirma que a mudança deve tornar a travessia mais segura para quem vai a pé até a estação do trem, a poucas quadras dali.',
+        'Nos próximos dias, a sinalização horizontal ainda será reforçada, e pode haver bloqueios rápidos de uma das faixas durante a madrugada. A orientação para os motoristas é redobrar a atenção nas cabeceiras até que todas as faixas estejam pintadas.',
+        'A Secretaria de Obras informou que a próxima etapa do programa de manutenção de pontes deve começar em novembro, na travessia do Arroio Pampa, no bairro Rondônia.'
       ] },
     { id: 2, cat: 'Economia', mins: 35,
       title: 'Polo calçadista projeta alta de 8% nas exportações até dezembro',
