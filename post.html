@@ -128,8 +128,30 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 .track .fill { position: absolute; inset: 0 0 auto; min-height: 10px; border-radius: 6px; background: var(--accent); transition: height .3s var(--ease); }
 
 /* Tempo restante, ao lado do topo da barra */
-.stats { flex: 1; min-width: 0; margin-top: -4px; font-size: 32px; font-weight: 500; line-height: 1.25; color: #b7bcc8; text-wrap: balance; }
+.side { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.stats { flex: none; margin-top: -4px; font-size: 32px; font-weight: 500; line-height: 1.25; color: #b7bcc8; text-wrap: balance; }
 .stats strong { color: var(--accent); font-weight: 700; }
+
+/* Dica das primeiras aberturas: ↑ ↓ rolam o texto (some quando a pessoa usa as setas) */
+.hint { margin-top: 36px; font-size: 30px; font-weight: 500; line-height: 1.3; color: var(--fg); text-wrap: balance; animation: fade .3s var(--ease); transition: opacity .3s ease; }
+.hint.out { opacity: 0; }
+.hint .keys { display: flex; margin-bottom: 14px; }
+.hint .key {
+  display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; margin-right: 12px;
+  border: 2px solid rgba(233,236,242,.32); border-radius: 14px; background: rgba(233,236,242,.06);
+}
+.hint .key .ms { font-size: 44px; }
+
+/* Fim do texto: marca fixa depois do último parágrafo; ↓ no fim faz a marca "quicar" */
+.end-mark { position: relative; margin-top: 1.4em; padding-top: .8em; border-top: 2px solid var(--line); font-size: .78em; line-height: 1.35; color: var(--muted); }
+.end-mark strong { display: block; color: var(--fg); font-weight: 700; }
+.end-mark.bump { animation: end-bump .5s var(--ease); }
+.end-mark.bump strong { animation: end-flash 1s ease; }
+@keyframes end-bump { 30% { transform: translateY(-14px); } }
+@keyframes end-flash { 0%, 45% { color: var(--accent); } }
+
+/* Só para leitores de tela */
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 .dock { flex: none; padding-top: 24px; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 28px; }   /* folga para o anel de foco não encostar no vizinho */
@@ -233,6 +255,11 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   const STORE = 'readontv:post-' + STORY.id;
   const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { return {}; } };
   const save = (v) => { try { localStorage.setItem(STORE, JSON.stringify({ ...load(), ...v })); } catch (e) {} };
+  // Dica "↑ ↓ rolam o texto": vale para todas as notícias. Some de vez quando a pessoa rola pelas setas
+  // ou depois de aparecer HINT_MAX vezes sem uso.
+  const HINT_KEY = 'readontv:hint-scroll', HINT_MAX = 3;
+  const loadHint = () => { try { return JSON.parse(localStorage.getItem(HINT_KEY)) || {}; } catch (e) { return {}; } };
+  const saveHint = (v) => { try { localStorage.setItem(HINT_KEY, JSON.stringify({ ...loadHint(), ...v })); } catch (e) {} };
 
   /* ---------- Rolagem do texto pelas setas (como a rolagem nativa do navegador) ----------
      Toque em ↑/↓: rola um pouco, com uma animação curta. Segurando: depois de HOLD_DELAY, rola contínuo
@@ -249,7 +276,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     STALE: 450                  // sem repetição da tecla nem keyup por este tempo = solta (controle que perde o keyup)
   };
 
-  function createScroller(getEl, getLine) {
+  // onEdge(dir): a seta pediu para ir além do limite (toque no limite, ou rolagem segurada que chegou nele)
+  function createScroller(getEl, getLine, onEdge) {
     let pos = 0, target = 0, hold = null, raf = 0, last = 0;
     const max = () => { const e = getEl(); return Math.max(0, e.scrollHeight - e.clientHeight); };
     const sync = () => { if (!raf) pos = target = getEl().scrollTop; };   // parado: parte de onde o texto está
@@ -263,6 +291,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
           if (t > 0) {
             const speed = getLine() * SCROLL.SPEED_LINES / 1000 * Math.min(1, t / SCROLL.RAMP);
             target = clamp(target + hold.dir * speed * dt, 0, m);
+            if (!hold.edged && (hold.dir > 0 ? target >= m : target <= 0)) { hold.edged = true; onEdge(hold.dir); }
           }
         }
       }
@@ -279,8 +308,10 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
         const now = performance.now();
         if (repeat && hold && hold.dir === dir) { hold.repeated = true; hold.seen = now; return; }
         sync();
-        target = clamp(target + dir * getLine() * SCROLL.TAP_LINES, 0, max());
-        hold = { dir, start: now, seen: now, repeated: false };
+        const next = clamp(target + dir * getLine() * SCROLL.TAP_LINES, 0, max()), edged = next === target;
+        target = next;
+        hold = { dir, start: now, seen: now, repeated: false, edged };
+        if (edged) onEdge(dir);
         run();
       },
       release() { hold = null; },
@@ -371,8 +402,17 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     const [edges, setEdges] = useState({ top: true, end: false });
     const maxScroll = () => el.current.scrollHeight - el.current.clientHeight;
     line.current = sizePx * 1.5;   // .prose usa line-height: 1.5
+    const endMark = useRef(null), live = useRef(null);
+    // ↓ no fim do texto: a marca "Fim da matéria" quica e o aviso é lido por leitores de tela.
+    // Mexe direto no DOM (sem estado) para não redesenhar o texto a cada toque.
+    const bumpEnd = (dir) => {
+      if (dir < 0) return;
+      const m = endMark.current, l = live.current;
+      if (m) { m.classList.remove('bump'); void m.offsetWidth; m.classList.add('bump'); }
+      if (l) { l.textContent = ''; setTimeout(() => { l.textContent = 'Fim da matéria. Aperte Voltar para retornar às notícias.'; }, 50); }
+    };
     const scroller = useRef(null);
-    if (!scroller.current) scroller.current = createScroller(() => el.current, () => line.current);
+    if (!scroller.current) scroller.current = createScroller(() => el.current, () => line.current, (d) => bumpEnd(d));
     const touched = () => { userScrollAt.current = Date.now(); };
 
     const firstVisible = () => {
@@ -389,6 +429,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     api.current = {
       firstVisible,
       atTop: () => scroller.current.atTop(),
+      canScroll: () => maxScroll() > 4,
       press: (dir, repeat) => { touched(); scroller.current.press(dir, repeat); },
       release: () => scroller.current.release(),
       toTop: () => { touched(); scroller.current.to(0); }
@@ -431,7 +472,9 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
           const kids = b.ids.map((id, k) => html`${k > 0 ? ' ' : ''}<span data-s=${id} class=${'s' + (idx === id ? ' cur' : '')}>${SENTENCES[id]}</span>`);
           return b.type === 'h' ? html`<h2 key=${bi}>${kids}</h2>` : html`<p key=${bi}>${kids}</p>`;
         })}
+        <div ref=${endMark} class="end-mark"><strong>Fim da matéria</strong>Aperte Voltar para retornar às notícias</div>
       </div>
+      <div ref=${live} class="sr" role="status" aria-live="polite"></div>
     </div>`;
   }
 
@@ -518,9 +561,38 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       if (dir !== 'up' && dir !== 'down') return true;
       const repeat = !!(details && details.pressedKeys && details.pressedKeys[dir] > 1);
       if (dir === 'up' && !repeat && reader.current.atTop()) return true;
+      learnScroll();
       reader.current.press(dir === 'down' ? 1 : -1, repeat);
       return false;
     };
+
+    // Dica "↑ ↓ rolam o texto" nas primeiras aberturas, só se o texto não cabe na tela.
+    // 0 = fora da tela, 1 = visível, 2 = sumindo (fade antes de desmontar)
+    const [hint, setHint] = useState(0);
+    const hintTimers = useRef({}), hintDone = useRef(false);
+    const hideHint = () => {
+      const t = hintTimers.current;
+      clearTimeout(t.show); clearTimeout(t.auto);
+      setHint(h => h === 1 ? 2 : h);
+      t.out = setTimeout(() => setHint(0), 320);
+    };
+    const learnScroll = () => {
+      if (hintDone.current) return;
+      hintDone.current = true;
+      saveHint({ learned: true });
+      hideHint();
+    };
+    useEffect(() => {
+      const st = loadHint(), t = hintTimers.current;
+      if (st.learned || (st.shown || 0) >= HINT_MAX) { hintDone.current = true; return; }
+      t.show = setTimeout(() => {
+        if (hintDone.current || !reader.current.canScroll()) return;
+        saveHint({ shown: (st.shown || 0) + 1 });
+        setHint(1);
+        t.auto = setTimeout(hideHint, 8000);
+      }, 700);
+      return () => { clearTimeout(t.show); clearTimeout(t.auto); clearTimeout(t.out); };
+    }, []);
     useEffect(() => {
       const onUp = (e) => {
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.keyCode === 38 || e.keyCode === 40) reader.current.release();
@@ -615,7 +687,17 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
         <div class="reader-wrap">
           <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt} />
           <div class="track" aria-hidden="true"><span class="fill" style=${{ height: prog.pct * 100 + '%' }}></span></div>
-          <${ReadingStats} pct=${prog.pct} from=${Math.max(prog.first, speech.idx)} />
+          <div class="side">
+            <${ReadingStats} pct=${prog.pct} from=${Math.max(prog.first, speech.idx)} />
+            ${hint > 0 && html`<div class=${'hint' + (hint === 2 ? ' out' : '')} role="status">
+              <span class="sr">Use as setas para cima e para baixo para rolar o texto</span>
+              <div class="keys" aria-hidden="true">
+                <span class="key"><span class="ms">keyboard_arrow_up</span></span>
+                <span class="key"><span class="ms">keyboard_arrow_down</span></span>
+              </div>
+              <span aria-hidden="true">Use as setas para rolar o texto</span>
+            </div>`}
+          </div>
         </div>
         <div class="dock"><${Row} focusKey="ACTIONS" className="actions">${buttons}<//></div>
       </main>
