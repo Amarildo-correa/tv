@@ -254,7 +254,9 @@ html.pointer .feature:hover .tvbtn, html.pointer .wx:hover .tvbtn {
 /* Notícia em destaque — sem foco: brilho azul na borda esquerda e no canto inferior esquerdo;
    com foco: fundo liso (--bg), anel branco no .feature-clip e o botão .tvbtn em destaque */
 .feature {
-  position: relative; height: 100%; min-width: 0;
+  /* Altura do próprio conteúdo (editoria, título, hora e botão), sem esticar até a altura da previsão:
+     o .feature-clip (fundo, foto e anel de foco) acompanha */
+  position: relative; height: auto; -ms-flex-item-align: start; align-self: start; min-width: 0;
   border-radius: 1rem;
   outline: none;
   --fb: 18, 18, 18;
@@ -285,7 +287,7 @@ html:not(.pointer) .feature:focus .feature-clip::before { opacity: 0; }
 /* Coluna de texto estreita: o texto quebra em mais linhas e ocupa a altura do destaque, liberando largura para a foto */
 /* Texto começa no topo e desce pela altura toda; o botão fica sempre embaixo */
 .feature-text {
-  position: relative; z-index: 2; height: 100%; width: 19.75rem; max-width: 100%;
+  position: relative; z-index: 2; width: 19.75rem; max-width: 100%;
   display: flex; flex-direction: column; justify-content: flex-start;
   padding: 2.5rem 1.25rem 2rem 3rem;
 }
