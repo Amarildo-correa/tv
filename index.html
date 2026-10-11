@@ -227,31 +227,36 @@ html:not(.pointer) .pill:focus { background: var(--focus); color: var(--on-focus
   to   { transform: scale(1.35); }
 }
 
-/* CTA que aparece só com foco (expande sem deslocar o resto de forma brusca) */
-.cta-wrap { display: grid; grid-template-rows: 0fr; opacity: 0; margin-top: -1rem; transition: opacity var(--dur) ease; }
-.cta-wrap > div { min-height: 0; overflow: hidden; display: flex; padding: 4px; }
-.cta {
-  display: inline-flex; align-items: center; justify-content: center;
-  height: 4rem; padding: 0 3rem; border-radius: 999px;
-  background: var(--focus); color: var(--on-focus);
-  font-size: 1.875rem; line-height: 1; white-space: nowrap;
+/* Botões do destaque: sempre visíveis, no mesmo estilo .tvbtn da tela de leitura (post.html).
+   Parado: pílula cinza translúcida. Com foco no bloco (ou hover no modo cursor): fundo claro, anel e leve zoom. */
+.cta-wrap > div { display: flex; }
+.tvbtn {
+  box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  height: 5.25rem; padding: 0 2.125rem 0 1.75rem; border-radius: 2.75rem;
+  font-family: var(--font-title); font-weight: 700; font-size: 2.25rem; line-height: 1; white-space: nowrap;
+  color: #E9ECF2; background: rgba(233, 236, 242, .1); border: 3px solid transparent;
+  transition: transform var(--dur) cubic-bezier(.2, .7, .2, 1), background-color var(--dur) ease, color var(--dur) ease, box-shadow var(--dur) ease;
 }
-html:not(.pointer) .wx:focus .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 2rem; }
+.tvbtn > .ms { font-size: 2.75rem; margin-right: .875rem; }
+.tvbtn.focused,
+html:not(.pointer) .feature:focus .tvbtn, html:not(.pointer) .wx:focus .tvbtn,
+html.pointer .feature:hover .tvbtn, html.pointer .wx:hover .tvbtn {
+  background: #F3F5FA; color: #0D0E11; -webkit-transform: scale(1.05); transform: scale(1.05);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 7px #F3F5FA, 0 1.125rem 2.5rem rgba(0, 0, 0, .55);
+}
 
 /* Destaque: duas colunas */
 .hero { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); grid-gap: 2.5rem; gap: 2.5rem; height: 38rem; }
 
 /* Notícia em destaque — sem foco: brilho azul na borda esquerda e no canto inferior esquerdo;
-   com foco: fundo liso (--bg), anel branco afastado do card, sem divisória no kicker e CTA visível */
+   com foco: fundo liso (--bg) e o botão .tvbtn em destaque (sem anel em volta do card) */
 .feature {
   position: relative; height: 100%; min-width: 0;
   border-radius: 1rem;
-  outline: .375rem solid transparent; outline-offset: .75rem;
+  outline: none;
   --fb: 18, 18, 18;
-  transition: outline-color var(--dur) ease;
   cursor: pointer;
 }
-html:not(.pointer) .feature:focus { outline-color: var(--focus); }
 .feature-clip {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: inherit; overflow: hidden;
   background: rgb(var(--fb));
@@ -271,7 +276,7 @@ html:not(.pointer) .feature:focus .feature-clip::before { opacity: 0; }
   background: linear-gradient(to right, rgba(var(--fb), 1) 0%, rgba(var(--fb), 1) 21%, rgba(var(--fb), .96) 23.5%, rgba(var(--fb), .86) 26%, rgba(var(--fb), .7) 28.5%, rgba(var(--fb), .5) 31%, rgba(var(--fb), .31) 33.5%, rgba(var(--fb), .16) 36%, rgba(var(--fb), .06) 38.5%, rgba(var(--fb), 0) 41%);
 }
 /* Coluna de texto estreita: o texto quebra em mais linhas e ocupa a altura do destaque, liberando largura para a foto */
-/* Texto começa no topo e desce pela altura toda; o botão aparece embaixo no foco sem empurrar o texto */
+/* Texto começa no topo e desce pela altura toda; o botão fica sempre embaixo */
 .feature-text {
   position: relative; z-index: 2; height: 100%; width: 19.75rem; max-width: 100%;
   display: flex; flex-direction: column; justify-content: flex-start;
@@ -293,10 +298,7 @@ html:not(.pointer) .feature:focus .feature-clip::before { opacity: 0; }
   text-wrap: balance;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
-.feature .cta-wrap { margin: 0 0 0 calc(-1.375rem - 4px); }
-html:not(.pointer) .feature:focus .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 1.5rem; }
-.feature .cta { height: 3.875rem; padding: 0 2.75rem 0 2.25rem; font-size: 1.625rem; }
-.feature .cta .ms { font-size: 2.25rem; }
+.feature .cta-wrap { margin: auto 0 0 -.5rem; padding-top: 1.5rem; }
 
 /* Previsão do tempo */
 .wx {
@@ -306,11 +308,10 @@ html:not(.pointer) .feature:focus .cta-wrap { grid-template-rows: 1fr; opacity: 
   padding: 1.75rem var(--wx-pad);
   border-radius: 1.5rem;
   background: transparent;
-  outline: var(--ring) solid transparent; outline-offset: 0;
-  transition: outline-color var(--dur) ease, background-color var(--dur) ease;
+  outline: none; /* sem anel de foco: o foco aparece no botão .tvbtn */
+  transition: background-color var(--dur) ease;
   cursor: pointer;
 }
-html:not(.pointer) .wx:focus { outline-color: var(--focus); }
 .wx-head { display: flex; align-items: center; white-space: nowrap; min-width: 0; flex: 0 0 auto; }
 .wx-title { font-family: var(--font-title); font-weight: 700; font-size: 2rem; color: var(--text-title); }
 .wx-head .bar { flex: 0 0 3px; height: 2.25rem; background: var(--accent); }
@@ -546,7 +547,6 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
 .hour > * + * { margin-top: .625rem; }
 .week > * + * { margin-top: .5rem; }
 .wrow .dd > * + * { margin-top: .25rem; }
-.feature .cta > .ms { margin-right: 1.25rem; }
 .back > .ms { margin-right: .625rem; }
 .det .k > .ms { margin-right: .5rem; }
 .hour .p > .ms { margin-right: .25rem; }
@@ -554,7 +554,7 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
 .fc-msg > .ms { margin-right: 1rem; }
 .wx-msg > .ms { margin-bottom: 1rem; }
 .wx > .wx-strip { margin-top: 1.5rem; }
-.wx > .cta-wrap { margin-top: .5rem; }
+.wx > .cta-wrap { margin-top: 1.5rem; }
 .top > .clock { margin-left: auto; }
 .card .txt > .n-time { margin-top: auto; }
 .fc-top > .fc-title { margin-left: 2.25rem; }
@@ -598,7 +598,6 @@ html.pointer .feature:hover .media img { animation: focus-zoom 500ms cubic-bezie
 
 html.pointer .feature:hover .feature-clip::before { opacity: 0; }
 html.pointer .feature:hover .n-title { color: var(--accent); text-decoration-line: underline; }
-html.pointer .feature:hover .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 1.5rem; }
 
 html.pointer .wx:hover { background-color: var(--surface-hover); }
 html.pointer .wx:hover .wx-title { color: var(--accent); text-decoration-line: underline; }
@@ -607,7 +606,6 @@ html.pointer .wx:hover .wx-strip { margin-right: 0; -webkit-mask-image: none; ma
    (sem ela o cursor saía do bloco, o hover caía, o peek voltava e piscava em loop) */
 html.pointer .wx::after { content: ''; position: absolute; top: 0; bottom: 0; left: 100%; width: 4.5rem; }
 html.pointer .wx:hover .wx-msg { margin-right: 0; }
-html.pointer .wx:hover .cta-wrap { grid-template-rows: 1fr; opacity: 1; margin-top: 2rem; }
 
 /* Setas dos peeks: só existem no modo cursor e só aparecem com o cursor sobre o peek */
 .peek {
@@ -948,13 +946,13 @@ html.unsupported .unsupported-screen {
             '<div class="feature-clip">' + mediaHTML(hero) + '</div>' +
             '<div class="feature-text">' +
               '<div class="n-text">' + newsText(hero, 'h2') + '</div>' +
-              '<div class="cta-wrap" aria-hidden="true"><div><span class="cta"><span class="ms" aria-hidden="true">local_library</span>Leia a matéria completa</span></div></div>' +
+              '<div class="cta-wrap" aria-hidden="true"><div><span class="tvbtn"><span class="ms" aria-hidden="true">local_library</span>Leia a matéria completa</span></div></div>' +
             '</div>' +
           '</article>' +
           '<div class="wx" id="wx" tabindex="0" role="button" aria-label="Previsão do tempo em Novo Hamburgo. Pressione OK para ver a previsão completa">' +
             '<div class="wx-head"><span class="wx-title">Previsão do tempo</span><span class="bar" aria-hidden="true"></span><span class="city">Novo Hamburgo, RS</span></div>' +
             '<div class="wx-strip" id="wxStrip"></div>' +
-            '<div class="cta-wrap" aria-hidden="true"><div><span class="cta">Veja a previsão do tempo completa</span></div></div>' +
+            '<div class="cta-wrap" aria-hidden="true"><div><span class="tvbtn">Veja a previsão do tempo completa</span></div></div>' +
           '</div>' +
         '</div>' +
       '</section>';
