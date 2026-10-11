@@ -249,7 +249,7 @@ html.pointer .feature:hover .tvbtn, html.pointer .wx:hover .tvbtn {
 .hero { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); grid-gap: 2.5rem; gap: 2.5rem; height: 38rem; }
 
 /* Notícia em destaque — sem foco: brilho azul na borda esquerda e no canto inferior esquerdo;
-   com foco: fundo liso (--bg) e o botão .tvbtn em destaque (sem anel em volta do card) */
+   com foco: fundo liso (--bg), anel branco no .feature-clip e o botão .tvbtn em destaque */
 .feature {
   position: relative; height: 100%; min-width: 0;
   border-radius: 1rem;
@@ -260,7 +260,11 @@ html.pointer .feature:hover .tvbtn, html.pointer .wx:hover .tvbtn {
 .feature-clip {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: inherit; overflow: hidden;
   background: rgb(var(--fb));
+  outline: .375rem solid transparent; outline-offset: .75rem;
+  transition: outline-color var(--dur) ease;
 }
+/* Anel de foco só em volta da imagem/fundo do destaque */
+html:not(.pointer) .feature:focus .feature-clip { outline-color: var(--focus); }
 .feature-clip::before {
   content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0; pointer-events: none;
   background:
