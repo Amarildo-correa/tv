@@ -35,6 +35,8 @@
     ['devicePixelRatio', dpr],
     ['Pixels reais desenhados', Math.round(w * dpr) + ' × ' + Math.round(h * dpr)],
     ['screen.width × height', screen.width + ' × ' + screen.height],
+    /* Mesmo teste do @supports do index.html: com fontes variáveis o app usa a Roboto Flex */
+    ['Fonte do app', (window.CSS && CSS.supports && CSS.supports('font-variation-settings', 'normal')) ? 'Roboto Flex (variável)' : 'Roboto (estática)'],
     ['Navegador', /Silk\/([\d.]+)/.test(navigator.userAgent) ? 'Silk ' + RegExp.$1 : navigator.userAgent.slice(0, 60)]
   ];
   document.getElementById('t').innerHTML = rows.map(function (r) {

@@ -50,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..32,400..800&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,computer,foggy,gamepad,graphic_eq,humidity_percentage,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,pause,play_arrow,rainy,rainy_heavy,rainy_light,replay,skip_next,skip_previous,smartphone,sports_soccer,stop,theater_comedy,thermostat,thunderstorm,trending_up,tv,umbrella,volume_off,water_drop,wb_twilight,weather_snowy&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,computer,foggy,gamepad,graphic_eq,humidity_percentage,info,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,pause,play_arrow,rainy,rainy_heavy,rainy_light,replay,skip_next,skip_previous,smartphone,sports_soccer,stop,theater_comedy,thermostat,thunderstorm,trending_up,tv,umbrella,volume_off,water_drop,wb_twilight,weather_snowy&display=block">
 <style>
 /* Layout: tela de TV 1920×1080 em rem (1rem = 16px em 1080p), margem de segurança de 5%, header sem fundo,
    destaque em duas colunas (notícia + previsão do tempo) e rails que deslizam na vertical */
@@ -193,7 +193,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .weather { display: flex; align-items: center; white-space: nowrap; min-width: 0; }
 .weather .ms { font-size: 2.75rem; color: var(--accent); }
 .weather .temp { font-family: var(--font-title); font-weight: 700; font-size: 2.25rem; color: var(--text-title); font-variant-numeric: lining-nums; }
-.weather .lbl { font-size: var(--size-meta); color: var(--text-meta); max-width: 14rem; overflow: hidden; text-overflow: ellipsis; }
 
 .pill {
   -webkit-appearance: none; appearance: none;
@@ -218,6 +217,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pill.rm { width: 4rem; padding: 0; justify-content: center; }
 .pill.rm .ms { font-size: 2rem; }
 .pill.rm[aria-pressed="true"] { color: var(--accent); }
+.pill.info { width: 4rem; padding: 0; justify-content: center; text-decoration: none; }
+.pill.info .ms { font-size: 2rem; }
 html:not(.pointer) .pill:focus { background: var(--focus); color: var(--on-focus); transform: scale(1.06); }
 
 /* Área de linhas */
@@ -787,7 +788,6 @@ html.unsupported .unsupported-screen {
     <div class="weather" id="weather" role="img" aria-label="Tempo agora em Novo Hamburgo">
       <span class="ms" aria-hidden="true">partly_cloudy_day</span>
       <span class="temp">--°</span>
-      <span class="lbl">Carregando</span>
     </div>
   </header>
 
@@ -962,7 +962,9 @@ html.unsupported .unsupported-screen {
       return '<button class="pill" type="button" data-section="' + s.key + '">' + s.key + '</button>';
     }).join('') +
       '<button class="pill rm" id="rmBtn" type="button" aria-label="Controle pelo celular" aria-pressed="false"><span class="ms" aria-hidden="true">smartphone</span></button>' +
-      '<button class="pill fs" id="fsBtn" type="button" aria-label="Tela cheia" aria-pressed="false"><span class="ms" aria-hidden="true">open_in_full</span></button>';
+      '<button class="pill fs" id="fsBtn" type="button" aria-label="Tela cheia" aria-pressed="false"><span class="ms" aria-hidden="true">open_in_full</span></button>' +
+      /* Link comum: OK do controle (Enter nativo) e do celular (click) abrem a página de diagnóstico */
+      '<a class="pill info" id="infoBtn" href="info" aria-label="Diagnóstico da tela"><span class="ms" aria-hidden="true">info</span></a>';
     setupFullscreen();
     navItems = Array.prototype.slice.call(navEl.querySelectorAll('.pill:not([hidden])'));
 
@@ -1651,9 +1653,8 @@ html.unsupported .unsupported-screen {
     var el = document.getElementById('weather');
     el.innerHTML =
       '<span class="ms" aria-hidden="true">' + icon + '</span>' +
-      (temp !== null ? '<span class="temp">' + temp + '</span>' : '') +
-      '<span class="lbl">' + esc(label) + '</span>';
-    /* role="img": o leitor de tela anuncia este rótulo (com a temperatura/condição reais) em vez do texto solto */
+      (temp !== null ? '<span class="temp">' + temp + '</span>' : '');
+    /* Condição só no rótulo acessível (o texto saiu do header). role="img": o leitor de tela anuncia este rótulo (com a temperatura/condição reais) em vez do texto solto */
     el.setAttribute('aria-label', 'Tempo agora em Novo Hamburgo: ' + (temp !== null ? temp + ', ' : '') + label);
   }
 
