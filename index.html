@@ -246,7 +246,10 @@ html.pointer .feature:hover .tvbtn, html.pointer .wx:hover .tvbtn {
 }
 
 /* Destaque: duas colunas */
-.hero { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); grid-gap: 2.5rem; gap: 2.5rem; height: 38rem; }
+/* Sem o resumo no destaque, o bloco ficou mais baixo (38 → 36.25rem, a altura mínima da previsão do tempo)
+   e a sobra vira espaço extra antes da primeira linha de cards: o anel do .feature-clip não encosta no título */
+.hero { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); grid-gap: 2.5rem; gap: 2.5rem; height: 36.25rem; }
+.rows > [data-row="hero"] + .row { margin-top: calc(var(--row-gap) + 1.75rem); }
 
 /* Notícia em destaque — sem foco: brilho azul na borda esquerda e no canto inferior esquerdo;
    com foco: fundo liso (--bg), anel branco no .feature-clip e o botão .tvbtn em destaque */
@@ -286,9 +289,8 @@ html:not(.pointer) .feature:focus .feature-clip::before { opacity: 0; }
   display: flex; flex-direction: column; justify-content: flex-start;
   padding: 2.5rem 1.25rem 2rem 3rem;
 }
-/* Só no destaque: título em até 6 linhas e resumo em 2 (nos cards, 2 e 3), ocupando a altura em vez da largura */
+/* Só no destaque: título em até 6 linhas (nos cards, 2) e sem resumo, ocupando a altura em vez da largura */
 .feature .n-title { -webkit-line-clamp: 6; }
-.feature .n-excerpt { -webkit-line-clamp: 2; }
 /* O botão é mais largo que a coluna estreita: deixa ele passar por cima da foto em vez de ser cortado */
 .feature .cta-wrap { width: -webkit-max-content; width: max-content; }
 .kicker { display: flex; align-items: center; font-size: var(--size-meta); color: var(--accent); text-transform: uppercase; letter-spacing: .02em; }
@@ -895,10 +897,11 @@ html.unsupported .unsupported-screen {
       '</span></div><img alt="" decoding="async"' + (card ? ' loading="lazy"' : '') + ' src="' + src + '"></div>';
   }
   /* Texto da notícia (tag, título, resumo e data): o mesmo nos cards dos rails e no destaque */
-  function newsText(s, heading) {
+  /* noExcerpt: o destaque (.feature) não mostra o resumo, só editoria, título e hora */
+  function newsText(s, heading, noExcerpt) {
     return '<span class="n-tag">' + esc(s.cat) + '</span>' +
       '<' + heading + ' class="n-title">' + esc(s.title) + '</' + heading + '>' +
-      '<span class="n-excerpt">' + esc(s.body[0]) + '</span>' +
+      (noExcerpt ? '' : '<span class="n-excerpt">' + esc(s.body[0]) + '</span>') +
       '<span class="n-time">' + ago(s.mins) + '</span>';
   }
   function guardImages(scope) {
@@ -951,7 +954,7 @@ html.unsupported .unsupported-screen {
           '<article class="feature" tabindex="0" role="button" data-id="' + hero.id + '" aria-label="Destaque: ' + esc(hero.title) + '. Pressione OK para ler a matéria completa">' +
             '<div class="feature-clip">' + mediaHTML(hero) + '</div>' +
             '<div class="feature-text">' +
-              '<div class="n-text">' + newsText(hero, 'h2') + '</div>' +
+              '<div class="n-text">' + newsText(hero, 'h2', true) + '</div>' +
               '<div class="cta-wrap" aria-hidden="true"><div><span class="tvbtn"><span class="ms" aria-hidden="true">local_library</span>Leia a matéria completa</span></div></div>' +
             '</div>' +
           '</article>' +
