@@ -246,10 +246,8 @@ html.pointer .feature:hover .tvbtn, html.pointer .wx:hover .tvbtn {
 }
 
 /* Destaque: duas colunas */
-/* Sem o resumo no destaque, o bloco ficou mais baixo (38 → 36.25rem, a altura mínima da previsão do tempo)
-   e a sobra vira espaço extra antes da primeira linha de cards: o anel do .feature-clip não encosta no título */
+/* Sem o resumo no destaque, o bloco ficou mais baixo (38 → 36.25rem, a altura mínima da previsão do tempo) */
 .hero { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); grid-gap: 2.5rem; gap: 2.5rem; height: 36.25rem; }
-.rows > [data-row="hero"] + .row { margin-top: calc(var(--row-gap) + 1.75rem); }
 
 /* Notícia em destaque — sem foco: brilho azul na borda esquerda e no canto inferior esquerdo;
    com foco: fundo liso (--bg), anel branco no .feature-clip e o botão .tvbtn em destaque */
