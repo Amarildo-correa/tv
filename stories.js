@@ -141,7 +141,7 @@
 
   /* Fotos ilustrativas do Wikimedia Commons (licenças Creative Commons), uma por notícia */
   window.ROT_IMG = {
-"1": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Ostritz_Krzewina_Zgorzelecka_Grunau_Bahnhof_Neisse_Bruecke_Grenze.JPG/960px-Ostritz_Krzewina_Zgorzelecka_Grunau_Bahnhof_Neisse_Bruecke_Grenze.JPG",
+"1": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Karlstad_Stonebridge.jpg/960px-Karlstad_Stonebridge.jpg",
 "2": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Shoes_and_Bags.jpg/960px-Shoes_and_Bags.jpg",
 "3": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Football_stadium_in_Tren%C4%8D%C3%ADn%2C_Slovakia.jpg/960px-Football_stadium_in_Tren%C4%8D%C3%ADn%2C_Slovakia.jpg",
 "4": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Beach-Please-2022-main-stage-green-lights.jpg/960px-Beach-Please-2022-main-stage-green-lights.jpg",
