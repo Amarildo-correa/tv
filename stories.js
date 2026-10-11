@@ -14,7 +14,14 @@
         'Durante a obra, o trânsito no Centro ficou mais lento nos horários de pico, principalmente na Rua Bento Gonçalves, que recebeu boa parte do fluxo desviado. Comerciantes da região relataram queda no movimento e comemoraram a reabertura.',
         'A ponte também ganhou calçadas mais largas dos dois lados e iluminação em LED. A prefeitura afirma que a mudança deve tornar a travessia mais segura para quem vai a pé até a estação do trem, a poucas quadras dali.',
         'Nos próximos dias, a sinalização horizontal ainda será reforçada, e pode haver bloqueios rápidos de uma das faixas durante a madrugada. A orientação para os motoristas é redobrar a atenção nas cabeceiras até que todas as faixas estejam pintadas.',
-        'A Secretaria de Obras informou que a próxima etapa do programa de manutenção de pontes deve começar em novembro, na travessia do Arroio Pampa, no bairro Rondônia.'
+        'A Secretaria de Obras informou que a próxima etapa do programa de manutenção de pontes deve começar em novembro, na travessia do Arroio Pampa, no bairro Rondônia.',
+        'Na primeira hora depois da liberação, a fila de carros que costumava se formar na Rua Bento Gonçalves no fim da tarde praticamente desapareceu. Os agentes de trânsito contaram mais de 900 veículos passando pela ponte entre as 17h e as 18h, número próximo ao registrado antes do início das obras.',
+        'Para quem mora nos bairros do outro lado do arroio, a reabertura encurta o caminho até o Centro. Durante os quatro meses de bloqueio, o trajeto alternativo pela Rua Lima e Silva acrescentava até quinze minutos nos horários de maior movimento.',
+        'Moradores que acompanharam a obra de perto elogiaram o resultado, mas pediram mais atenção à velocidade dos carros na descida da ponte. A prefeitura disse que estuda instalar uma lombada eletrônica no trecho e que um radar móvel deve ser usado nas primeiras semanas.',
+        'Os ciclistas também foram lembrados. Uma faixa compartilhada foi pintada no acostamento da ponte, ligando a ciclovia da Avenida Pedro Adams Filho ao trecho que segue em direção ao Parque Floresta Imperial.',
+        'Durante a reforma, técnicos da Defesa Civil fizeram medições do leito do arroio. O relatório apontou acúmulo de sedimentos sob a ponte, e uma limpeza do canal está prevista para os próximos meses, antes da temporada de chuvas de verão.',
+        'A ponte sobre o Arroio Luiz Rau é uma das mais antigas da área central e liga o Centro aos bairros da zona leste da cidade. Por ela passam, em média, cerca de 18 mil veículos por dia, além de quatro linhas de ônibus urbano.',
+        'Até a conclusão da sinalização, a Guarda Municipal mantém uma equipe nas duas cabeceiras entre as 7h e as 9h e entre as 17h e as 19h. Dúvidas e pedidos sobre o trânsito na região podem ser feitos pelo telefone 156 da prefeitura.'
       ] },
     { id: 2, cat: 'Economia', mins: 35,
       title: 'Polo calçadista projeta alta de 8% nas exportações até dezembro',
