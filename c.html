@@ -104,7 +104,7 @@
 <script src="https://cdn.jsdelivr.net/npm/mqtt@5.16.0/dist/mqtt.min.js"></script>
 <script>
 (function () {
-  /* Precisa bater com a lista do index.html: a TV escolhe o broker e manda o índice no link (&b=) */
+  /* Mesma lista do index.html. A TV escuta em todos; o índice no link (&b=) só diz por qual começar */
   var BROKERS = [
     { name: 'EMQX', url: 'wss://broker.emqx.io:8084/mqtt' },
     { name: 'HiveMQ', url: 'wss://broker.hivemq.com:8884/mqtt' }
@@ -147,18 +147,37 @@
     store('rot-remote-b', bi);
 
     var seq = 0, sent = {}, lastRtt = null, acked = false, acks = 0, rtts = [];
-    var client = mqtt.connect(BROKERS[bi].url, {
-      clientId: 'rotv-ph-' + Math.random().toString(36).slice(2, 10),
-      clean: true, connectTimeout: 8000, reconnectPeriod: 2000, keepalive: 30, timerVariant: 'native'
-    });
-    client.on('connect', function () {
-      client.subscribe(PREFIX + code + '/ack', { qos: 0 });
-      status(acked ? 'TV conectada' : 'Pronto · toque para testar', acked ? 'ok' : 'warn');
-    });
-    client.on('reconnect', function () { status('Reconectando…', 'warn'); });
-    client.on('offline', function () { status('Sem conexão', 'bad'); });
-    client.on('error', function (e) { status('Erro: ' + (e && e.message || e), 'bad'); });
-    client.on('message', function (topic, payload) {
+    /* A TV escuta em todos os brokers. Se o atual não responder em 12 s (ex.: "connack timeout",
+       porta bloqueada pela rede do celular), troca para o próximo e lembra o que funcionou. */
+    var client = null, downSince = 0, SWITCH_MS = 12000;
+    function connect() {
+      if (client) { try { client.end(true); } catch (err) {} }
+      downSince = Date.now();
+      status('Conectando…', 'warn');
+      var c = client = mqtt.connect(BROKERS[bi].url, {
+        clientId: 'rotv-ph-' + Math.random().toString(36).slice(2, 10),
+        clean: true, connectTimeout: 10000, reconnectPeriod: 3000, keepalive: 30, timerVariant: 'native'
+      });
+      c.on('connect', function () {
+        if (c !== client) return;
+        downSince = 0;
+        store('rot-remote-b', bi);
+        c.subscribe(PREFIX + code + '/ack', { qos: 0 });
+        status(acked ? 'TV conectada' : 'Pronto · toque para testar', acked ? 'ok' : 'warn');
+      });
+      c.on('close', function () { if (c === client && !downSince) downSince = Date.now(); });
+      c.on('reconnect', function () { if (c === client) status('Reconectando…', 'warn'); });
+      c.on('offline', function () { if (c === client) status('Sem conexão', 'bad'); });
+      c.on('error', function () { if (c === client && BROKERS.length > 1) status('Servidor lento, tentando outro…', 'warn'); });
+      c.on('message', onAck);
+    }
+    setInterval(function () {
+      if (downSince && Date.now() - downSince > SWITCH_MS && navigator.onLine !== false) {
+        bi = (bi + 1) % BROKERS.length;
+        connect();
+      }
+    }, 2000);
+    function onAck(topic, payload) {
       var m; try { m = JSON.parse(String(payload)); } catch (err) { return; }
       if (!m || !sent[m.n]) return;
       lastRtt = Math.round(performance.now() - sent[m.n]);
@@ -166,14 +185,15 @@
       acks++; rtts.push(lastRtt); if (rtts.length > 50) rtts.shift();
       if (!acked) { acked = true; status('TV conectada', 'ok'); }
       meta();
-    });
+    }
+    connect();
     function meta() {
       var avg = rtts.length ? Math.round(rtts.reduce(function (x, y) { return x + y; }, 0) / rtts.length) : '—';
       $('phMeta').textContent = 'Resposta da TV: ' + (lastRtt === null ? '—' : lastRtt + ' ms') + ' · média ' + avg + ' ms · ' + acks + '/' + seq + ' confirmados';
     }
 
     function send(k) {
-      if (!client.connected) return;
+      if (!client || !client.connected) return;
       seq++;
       sent[seq] = performance.now();
       client.publish(PREFIX + code + '/cmd', JSON.stringify({ k: k, n: seq }), { qos: 0 });

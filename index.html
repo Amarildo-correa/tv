@@ -1474,7 +1474,7 @@ html.unsupported .unsupported-screen {
   };
   var remoteEl = document.getElementById('remote');
   var rmBtn = null; /* criado no build() da nav: ligado em rmInit() */
-  var rm = { code: null, bi: 0, client: null, connected: false, starting: false, failTimer: null, paired: false };
+  var rm = { code: null, bi: 0, clients: [], live: [], connected: false, starting: false, paired: false };
   function rmStore(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (err) { return null; } }
   (function () {
     var ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1520,7 +1520,7 @@ html.unsupported .unsupported-screen {
     })();
   }
   function rmStart() {
-    if (rm.client || rm.starting) return;
+    if (rm.clients.length || rm.starting) return;
     rm.starting = true;
     rmStatus('Conectando…', false);
     rmLoadLibs(function (ok) {
@@ -1530,34 +1530,42 @@ html.unsupported .unsupported-screen {
       rmConnect();
     });
   }
+  /* A TV escuta em TODOS os brokers ao mesmo tempo: o celular pode usar qualquer um e trocar sozinho
+     quando um deles não responde (ex.: "connack timeout"), sem precisar combinar o broker com a TV.
+     O índice no link (&b=) é só a ordem de tentativa do celular: o primeiro broker que conectou aqui. */
+  function rmLive() { for (var i = 0; i < rm.live.length; i++) if (rm.live[i]) return true; return false; }
+  function rmReadyText() { return rm.paired ? 'Pronto. Use o celular para navegar.' : 'Aguardando o celular…'; }
   function rmConnect() {
-    if (rm.client) { try { rm.client.end(true); } catch (err) {} }
-    rm.connected = false;
+    rm.clients.forEach(function (old) { try { old.end(true); } catch (err) {} });
+    rm.clients = []; rm.live = []; rm.connected = false;
     rmRender();
-    var c = rm.client = mqtt.connect(RM_BROKERS[rm.bi].url, {
-      clientId: 'rotv-tv-' + Math.random().toString(36).slice(2, 10),
-      clean: true, connectTimeout: 8000, reconnectPeriod: 2000, keepalive: 30, timerVariant: 'native'
-    });
-    clearTimeout(rm.failTimer);
-    /* Broker sem resposta em 10 s: troca pelo próximo e atualiza o QR (o índice vai no link do celular) */
-    rm.failTimer = setTimeout(function () {
-      if (!rm.connected) { rm.bi = (rm.bi + 1) % RM_BROKERS.length; rmConnect(); }
-    }, 10000);
-    c.on('connect', function () {
-      rm.connected = true;
-      clearTimeout(rm.failTimer);
-      c.subscribe(RM_PREFIX + rm.code + '/cmd', { qos: 0 });
-      rmStatus(rm.paired ? 'Pronto. Use o celular para navegar.' : 'Aguardando o celular…', rm.paired);
-    });
-    c.on('reconnect', function () { rmStatus('Reconectando…', false); });
-    c.on('offline', function () { rmStatus('Sem conexão com a internet', false); });
-    c.on('message', function (topic, payload) {
-      var m;
-      try { m = JSON.parse(String(payload)); } catch (err) { return; }
-      if (!m || !RM_KEYS[m.k]) return;
-      /* Confirmação para o celular medir a ida e volta */
-      c.publish(RM_PREFIX + rm.code + '/ack', JSON.stringify({ n: m.n }), { qos: 0 });
-      remoteCommand(m.k);
+    RM_BROKERS.forEach(function (b, i) {
+      var c = mqtt.connect(b.url, {
+        clientId: 'rotv-tv-' + Math.random().toString(36).slice(2, 10),
+        clean: true, connectTimeout: 10000, reconnectPeriod: 3000, keepalive: 30, timerVariant: 'native'
+      });
+      rm.clients[i] = c; rm.live[i] = false;
+      c.on('connect', function () {
+        var first = !rmLive();
+        rm.live[i] = true; rm.connected = true;
+        c.subscribe(RM_PREFIX + rm.code + '/cmd', { qos: 0 });
+        if (first) { rm.bi = i; rmRender(); }
+        rmStatus(rmReadyText(), rm.paired);
+      });
+      c.on('close', function () {
+        rm.live[i] = false; rm.connected = rmLive();
+        if (!rm.connected) rmStatus('Reconectando…', false);
+      });
+      c.on('offline', function () { if (!rmLive()) rmStatus('Sem conexão com a internet', false); });
+      c.on('error', function () {}); /* mqtt.js segue tentando; o outro broker cobre enquanto isso */
+      c.on('message', function (topic, payload) {
+        var m;
+        try { m = JSON.parse(String(payload)); } catch (err) { return; }
+        if (!m || !RM_KEYS[m.k]) return;
+        /* Confirmação pelo mesmo broker que trouxe o comando, para o celular medir a ida e volta */
+        c.publish(RM_PREFIX + rm.code + '/ack', JSON.stringify({ n: m.n }), { qos: 0 });
+        remoteCommand(m.k);
+      });
     });
   }
   function remoteCommand(k) {
@@ -1596,7 +1604,7 @@ html.unsupported .unsupported-screen {
     rmBtn.addEventListener('click', function () {
       openOverlay(remoteEl, rmBtn);
       rmRender();
-      if (rm.client) rmStatus(rm.connected ? (rm.paired ? 'Pronto. Use o celular para navegar.' : 'Aguardando o celular…') : 'Conectando…', rm.connected && rm.paired);
+      if (rm.clients.length) rmStatus(rm.connected ? rmReadyText() : 'Conectando…', rm.connected && rm.paired);
       rmStart();
     });
     document.getElementById('rmBack').addEventListener('click', requestClose);
