@@ -49,6 +49,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..32,400..800&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,computer,foggy,gamepad,graphic_eq,humidity_percentage,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,pause,play_arrow,rainy,rainy_heavy,rainy_light,replay,skip_next,skip_previous,smartphone,sports_soccer,stop,theater_comedy,thermostat,thunderstorm,trending_up,tv,umbrella,volume_off,water_drop,wb_twilight,weather_snowy&display=block">
 <style>
 /* Layout: tela de TV 1920×1080 em rem (1rem = 16px em 1080p), margem de segurança de 5%, header sem fundo,
@@ -69,7 +70,8 @@
   --placeholder: #1F2C38;
 
   /* Roboto: a família de interface do YouTube (a YouTube Sans é proprietária e não é distribuída).
-     Uma família só, com dois pesos: 700 nos títulos e 500 no texto (mais firme que o 400 a 3 m de distância). */
+     Uma família só, com dois pesos: 700 nos títulos e 500 no texto (mais firme que o 400 a 3 m de distância).
+     Em navegadores com suporte a fontes variáveis, a Roboto Flex assume (ver @supports abaixo de .ms). */
   --font-title: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-body: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
@@ -143,6 +145,20 @@ body {
   user-select: none;
 }
 .ms.fill { font-variation-settings: 'FILL' 1; }
+
+/* Roboto Flex (fonte variável) só onde o navegador entende eixos variáveis (Chromium 62+, Safari 11+).
+   TVs antigas ignoram este bloco e seguem com a Roboto estática; a woff2 da Flex só é baixada por quem entra aqui.
+   opsz fixo e baixo: a 3 m, mesmo 34 px são lidos como texto pequeno, e o tamanho óptico "auto" escolheria
+   o desenho de título (traço fino, espaçamento justo). Ícones (.ms) ficam de fora e mantêm os próprios eixos. */
+@supports (font-variation-settings: normal) {
+  :root {
+    --font-title: 'Roboto Flex', 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-body: 'Roboto Flex', 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --flex-opsz: 14;
+  }
+  body, body :not(.ms) { font-variation-settings: 'opsz' var(--flex-opsz); }
+  .ms { font-variation-settings: normal; } /* .ms.fill (mais específico) continua valendo */
+}
 button { font: inherit; color: inherit; cursor: pointer; }
 
 .app {
