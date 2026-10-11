@@ -50,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..32,400..800&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,computer,foggy,gamepad,graphic_eq,humidity_percentage,info,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,pause,play_arrow,rainy,rainy_heavy,rainy_light,replay,skip_next,skip_previous,smartphone,sports_soccer,stop,theater_comedy,thermostat,thunderstorm,trending_up,tv,umbrella,volume_off,water_drop,wb_twilight,weather_snowy&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=air,arrow_back,bedtime,chevron_left,chevron_right,clear_day,clear_night,close_fullscreen,cloud,cloud_off,cloud_sync,computer,foggy,gamepad,graphic_eq,humidity_percentage,info,link_off,local_library,location_city,mouse,open_in_full,partly_cloudy_day,partly_cloudy_night,pause,play_arrow,rainy,rainy_heavy,rainy_light,replay,skip_next,skip_previous,smartphone,sports_soccer,stop,theater_comedy,thermostat,thunderstorm,trending_up,tv,umbrella,volume_off,water_drop,wb_twilight,weather_snowy&display=block">
 <style>
 /* Layout: tela de TV 1920×1080 em rem (1rem = 16px em 1080p), margem de segurança de 5%, header sem fundo,
    destaque em duas colunas (notícia + previsão do tempo) e rails que deslizam na vertical */
@@ -489,6 +489,9 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
 .rm-status { display: flex; align-items: center; margin: 0; font-size: var(--size-meta); color: var(--text-meta); }
 .rm-status .ms { font-size: 2rem; margin-right: .75rem; }
 .rm-status.ok { color: var(--accent); }
+/* Revogar: mesmo foco do Voltar, com fundo para ler como ação; texto no tamanho da nav (30 px) */
+.back.rm-new { margin-top: 2.5rem; height: 4rem; padding: 0 1.75rem; font-size: var(--size-nav); background: var(--surface-focus); }
+.back.rm-new .ms { font-size: 2rem; margin-right: .75rem; }
 .fc { display: flex; flex-direction: column; }
 .fc-top { display: flex; align-items: center; white-space: nowrap; }
 .fc-top .fc-title { margin: 0 0 0 1rem; font-family: var(--font-title); font-weight: 700; font-size: 2.5rem; color: var(--text-title); }
@@ -835,6 +838,7 @@ html.unsupported .unsupported-screen {
       <p class="rm-step">Aponte a câmera do celular para o QR code ou abra <b id="rmUrl">—</b> e digite o código:</p>
       <div class="rm-code" id="rmCode">—</div>
       <p class="rm-status" id="rmStatus" role="status" aria-live="polite"><span class="ms" aria-hidden="true">cloud_sync</span><span id="rmStatusText">Conectando…</span></p>
+      <button class="back rm-new" id="rmNew" type="button"><span class="ms" aria-hidden="true">link_off</span><span id="rmNewText">Gerar novo código</span></button>
     </div>
   </div>
 </div>
@@ -1441,6 +1445,10 @@ html.unsupported .unsupported-screen {
         e.preventDefault();
         overlayFocusTarget(overlay).focus({ preventScroll: true });
       }
+      else if (overlay === remoteEl && map[key]) {
+        e.preventDefault();
+        document.getElementById(key === 'ArrowDown' || key === 'ArrowRight' ? 'rmNew' : 'rmBack').focus({ preventScroll: true });
+      }
       else if (key === 'ArrowDown' || key === 'ArrowUp') {
         e.preventDefault();
         overlay.scrollBy({ top: (key === 'ArrowDown' ? 1 : -1) * window.innerHeight * 0.3, behavior: reduceMotion ? 'auto' : 'smooth' });
@@ -1478,14 +1486,15 @@ html.unsupported .unsupported-screen {
   var rmBtn = null; /* criado no build() da nav: ligado em rmInit() */
   var rm = { code: null, bi: 0, clients: [], live: [], connected: false, starting: false, paired: false };
   function rmStore(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (err) { return null; } }
+  function rmNewCode(avoid) {
+    var ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', c;
+    do { c = ''; for (var i = 0; i < 5; i++) c += ALPHA[Math.floor(Math.random() * ALPHA.length)]; } while (c === avoid);
+    rmStore('rot-remote-code', c);
+    return c;
+  }
   (function () {
-    var ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     var c = String(rmStore('rot-remote-code') || '');
-    if (!/^[A-Z0-9]{5}$/.test(c)) {
-      c = '';
-      for (var i = 0; i < 5; i++) c += ALPHA[Math.floor(Math.random() * ALPHA.length)];
-      rmStore('rot-remote-code', c);
-    }
+    if (!/^[A-Z0-9]{5}$/.test(c)) c = rmNewCode();
     rm.code = c;
     rm.paired = rmStore('rot-remote-paired') === '1';
   })();
@@ -1563,18 +1572,41 @@ html.unsupported .unsupported-screen {
       c.on('message', function (topic, payload) {
         var m;
         try { m = JSON.parse(String(payload)); } catch (err) { return; }
-        if (!m || !RM_KEYS[m.k]) return;
+        if (!m || !RM_KEYS[m.k] || topic !== RM_PREFIX + rm.code + '/cmd') return;
         /* Confirmação pelo mesmo broker que trouxe o comando, para o celular medir a ida e volta */
         c.publish(RM_PREFIX + rm.code + '/ack', JSON.stringify({ n: m.n }), { qos: 0 });
         remoteCommand(m.k);
       });
     });
   }
+  function rmNewLabel() {
+    document.getElementById('rmNewText').textContent = rm.paired ? 'Desconectar celular e gerar novo código' : 'Gerar novo código';
+  }
+  /* Revoga o código atual: avisa o celular pareado, troca o código e passa a escutar só o novo.
+     Quem tinha o link ou o código antigo deixa de controlar a TV e precisa escanear de novo. */
+  function rmRevoke() {
+    var old = rm.code;
+    rm.code = rmNewCode(old);
+    rm.paired = false;
+    try { localStorage.removeItem('rot-remote-paired'); } catch (err) {}
+    if (rmBtn) rmBtn.setAttribute('aria-pressed', 'false');
+    rm.clients.forEach(function (c, i) {
+      if (!rm.live[i]) return; /* desconectado: o 'connect' já assina o código novo */
+      c.publish(RM_PREFIX + old + '/ack', JSON.stringify({ revoked: true }), { qos: 0 });
+      c.unsubscribe(RM_PREFIX + old + '/cmd');
+      c.subscribe(RM_PREFIX + rm.code + '/cmd', { qos: 0 });
+    });
+    rmRender();
+    rmNewLabel();
+    if (!rm.clients.length) rmStart();
+    else rmStatus(rm.connected ? 'Novo código pronto. Aguardando o celular…' : 'Conectando…', false);
+  }
   function remoteCommand(k) {
     if (!rm.paired) {
       rm.paired = true;
       rmStore('rot-remote-paired', '1');
       if (rmBtn) rmBtn.setAttribute('aria-pressed', 'true');
+      rmNewLabel();
     }
     rmStatus('Celular conectado', true);
     /* O primeiro comando com a tela de pareamento aberta só a fecha */
@@ -1610,6 +1642,8 @@ html.unsupported .unsupported-screen {
       rmStart();
     });
     document.getElementById('rmBack').addEventListener('click', requestClose);
+    document.getElementById('rmNew').addEventListener('click', rmRevoke);
+    rmNewLabel();
     /* Já pareado antes: reconecta em segundo plano depois que a página carregar */
     if (rm.paired) window.addEventListener('load', function () { setTimeout(rmStart, 1500); });
   }

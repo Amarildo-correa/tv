@@ -149,7 +149,7 @@
     var seq = 0, sent = {}, lastRtt = null, acked = false, acks = 0, rtts = [];
     /* A TV escuta em todos os brokers. Se o atual não responder em 12 s (ex.: "connack timeout",
        porta bloqueada pela rede do celular), troca para o próximo e lembra o que funcionou. */
-    var client = null, downSince = 0, SWITCH_MS = 12000;
+    var client = null, downSince = 0, SWITCH_MS = 12000, revoked = false;
     function connect() {
       if (client) { try { client.end(true); } catch (err) {} }
       downSince = Date.now();
@@ -172,19 +172,28 @@
       c.on('message', onAck);
     }
     setInterval(function () {
-      if (downSince && Date.now() - downSince > SWITCH_MS && navigator.onLine !== false) {
+      if (!revoked && downSince && Date.now() - downSince > SWITCH_MS && navigator.onLine !== false) {
         bi = (bi + 1) % BROKERS.length;
         connect();
       }
     }, 2000);
     function onAck(topic, payload) {
       var m; try { m = JSON.parse(String(payload)); } catch (err) { return; }
+      if (m && m.revoked) { revoke(); return; }
       if (!m || !sent[m.n]) return;
       lastRtt = Math.round(performance.now() - sent[m.n]);
       delete sent[m.n];
       acks++; rtts.push(lastRtt); if (rtts.length > 50) rtts.shift();
-      if (!acked) { acked = true; status('TV conectada', 'ok'); }
+      acked = true; status('TV conectada', 'ok'); /* também limpa um aviso de "não respondeu" anterior */
       meta();
+    }
+    /* A TV gerou um código novo: este celular deixa de controlar e volta para a tela de código */
+    function revoke() {
+      revoked = true;
+      try { client.end(true); } catch (err) {}
+      try { localStorage.removeItem('rot-remote-last'); } catch (err) {}
+      status('TV desconectou este celular', 'bad');
+      $('phMeta').textContent = 'Toque em "Trocar de TV" e digite o novo código que aparece na TV.';
     }
     connect();
     function meta() {
@@ -193,9 +202,12 @@
     }
 
     function send(k) {
-      if (!client || !client.connected) return;
+      if (revoked || !client || !client.connected) return;
       seq++;
       sent[seq] = performance.now();
+      /* Sem confirmação em 3 s: o código pode ter sido trocado na TV (ou a TV está desligada) */
+      var n = seq;
+      setTimeout(function () { if (sent[n] && !revoked) status('A TV não respondeu. Confira o código na TV.', 'bad'); }, 3000);
       client.publish(PREFIX + code + '/cmd', JSON.stringify({ k: k, n: seq }), { qos: 0 });
       if (navigator.vibrate) { try { navigator.vibrate(12); } catch (err) {} }
       for (var n in sent) if (performance.now() - sent[n] > 5000) delete sent[n];
