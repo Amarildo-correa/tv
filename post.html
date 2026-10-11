@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Read on TV · Leitura</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24..48,500,0..1,0&display=block">
+<style>
+/* Canvas de TV 1920×1080 escalado para a janela. Duas colunas-pai empilhadas:
+   1) .hero  → marca + título (+ imagem de fundo)
+   2) .body  → texto, progresso, tempo restante e barra de ações */
+:root {
+  color-scheme: dark;
+  --bg: #0d0e11;
+  --panel: #16181e;
+  --fg: #e9ecf2;          /* branco levemente acinzentado: evita halação em telas escuras */
+  --muted: #9aa1b1;
+  --accent: #a9c3ff;
+  --accent-ink: #0b1430;
+  --focus-bg: #f3f5fa;
+  --focus-fg: #0d0e11;
+  --hl: rgba(169,195,255,.17);
+  --line: rgba(233,236,242,.14);
+  --font: "Roboto", "Segoe UI", system-ui, sans-serif;
+  --safe-x: 96px;          /* 5% de 1920 */
+  --safe-y: 54px;          /* 5% de 1080 */
+  --ease: cubic-bezier(.2,.7,.2,1);
+}
+html, body { height: 100%; }
+body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-family: var(--font); }
+.ms {
+  font-family: "Material Symbols Rounded"; font-weight: normal; font-style: normal;
+  line-height: 1; white-space: nowrap; font-feature-settings: "liga"; -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 1, "wght" 500, "opsz" 40; display: inline-block;
+}
+
+.stage {
+  position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--s, .5));
+  background: var(--bg); overflow: hidden;
+}
+.app { position: absolute; inset: 0; display: flex; flex-direction: column; }
+
+/* ---------- Coluna 1: hero (marca + título) ---------- */
+.hero { position: relative; flex: none; display: flex; flex-direction: column; padding: var(--safe-y) var(--safe-x) 0; }
+.hero > :not(.hero-img) { position: relative; }
+.hero-img {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 980px; transition: opacity .3s ease;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20%), linear-gradient(#000 82%, transparent);
+  -webkit-mask-composite: source-in;
+          mask-image: linear-gradient(90deg, transparent, #000 20%), linear-gradient(#000 82%, transparent);
+          mask-composite: intersect;
+}
+.hero-img img, .hero-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hero-img img { opacity: 1; }
+.brand { display: flex; align-items: center; gap: 10px; height: 64px; font-size: 30px; }
+.brand b { font-weight: 900; }
+.brand .logo { flex: none; width: 46px; height: 46px; margin-right: 8px; }
+.title { margin: 44px 0 0; max-width: 1000px; font: 800 54px/1.16 var(--font); color: var(--accent); }
+.hero-div, .hero-thumb { display: none; }
+
+/* Hero recolhido: vira uma linha fina — marca | título | miniatura */
+.collapsed .hero { flex-direction: row; align-items: center; gap: 28px; }
+.collapsed .brand { height: 84px; }
+.collapsed .brand b { display: none; }          /* recolhido: só o logo */
+.collapsed .brand .logo { margin-right: 0; }
+.collapsed .hero-img { opacity: 0; }
+.collapsed .hero-div { display: block; flex: none; width: 3px; height: 50px; border-radius: 2px; background: var(--line); }
+.collapsed .title {
+  flex: 1; min-width: 0; margin: 0; max-width: none; font-size: 34px; line-height: 1.1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Miniatura encostada no topo e na lateral direita da tela, com fade para a esquerda e para baixo */
+.collapsed .title { margin-right: 220px; }
+.collapsed .hero-thumb {
+  display: block; position: absolute; top: 0; right: 0; bottom: 0; width: 380px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%), linear-gradient(#000 80%, transparent);
+  -webkit-mask-composite: source-in;
+          mask-image: linear-gradient(90deg, transparent, #000 25%), linear-gradient(#000 80%, transparent);
+          mask-composite: intersect;
+}
+
+/* ---------- Coluna 2: leitura + ações ---------- */
+.body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 var(--safe-x) var(--safe-y); }
+.reader-wrap { flex: 1; min-height: 0; display: flex; gap: 28px; margin-top: 40px; transition: margin-top .25s ease; }
+.collapsed .reader-wrap { margin-top: 30px; }
+
+.reader {
+  position: relative; flex: 0 0 1260px; box-sizing: border-box; overflow: hidden; padding: 6px 28px 0 0;
+  --mask: linear-gradient(#000 calc(100% - 150px), transparent);
+  -webkit-mask-image: var(--mask); mask-image: var(--mask);
+}
+.reader.scrolled { --mask: linear-gradient(transparent, #000 80px, #000 calc(100% - 150px), transparent); }
+.reader.scrolled.at-end { --mask: linear-gradient(transparent, #000 80px); }
+.reader.at-end:not(.scrolled) { --mask: none; }
+.prose { max-width: 1220px; font-size: var(--read-size); line-height: 1.5; padding-bottom: 160px; }
+.prose p { margin: 0 0 .85em; font-weight: 500; }
+.prose h2 { margin: 1.2em 0 .45em; font: 700 1.04em/1.25 var(--font); color: var(--accent); text-wrap: balance; }
+.s { border-radius: 8px; padding: 0 .08em; transition: background-color .25s, color .25s; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.s.cur { background: var(--hl); color: #fff; box-shadow: 0 0 0 .08em var(--hl); }
+
+/* Barra de rolagem = barra de progresso */
+.track { flex: none; width: 10px; margin: 4px 0; border-radius: 6px; background: var(--line); position: relative; }
+.track .fill { position: absolute; inset: 0 0 auto; min-height: 10px; border-radius: 6px; background: var(--accent); transition: height .3s var(--ease); }
+
+/* Tempo restante, ao lado do topo da barra */
+.stats { flex: 1; min-width: 0; margin-top: -4px; font-size: 32px; font-weight: 500; line-height: 1.25; color: #b7bcc8; text-wrap: balance; }
+.stats strong { color: var(--accent); font-weight: 700; }
+
+.dock { flex: none; padding-top: 24px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 28px; }   /* folga para o anel de foco não encostar no vizinho */
+
+/* ---------- Botões de TV ---------- */
+.tvbtn {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 14px;
+  height: 84px; padding: 0 34px 0 28px; border-radius: 44px;
+  font: 700 36px/1 var(--font); color: var(--fg);
+  background: rgba(233,236,242,.1); border: 3px solid transparent;
+  transition: transform .18s var(--ease), background-color .18s, color .18s, box-shadow .18s;
+}
+.tvbtn .ms { font-size: 44px; }
+.tvbtn .sub { font-weight: 500; opacity: .75; }
+.tvbtn.primary { background: var(--accent); color: var(--accent-ink); }
+.tvbtn.icon { width: 84px; padding: 0; justify-content: center; }
+.tvbtn.back { margin-right: 32px; }   /* Voltar afastado dos demais */
+.tvbtn.end { margin-left: auto; }     /* "Ver imagens" alinhado à direita */
+.tvbtn.focused {
+  background: var(--focus-bg); color: var(--focus-fg); transform: scale(1.05);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 7px var(--focus-bg), 0 18px 40px rgba(0,0,0,.55);
+}
+.tvbtn.primary.focused { background: #fff; }
+
+/* ---------- Modal, toast e guias ---------- */
+.scrim { position: absolute; inset: 0; background: rgba(5,5,7,.78); display: grid; place-items: center; animation: fade .2s var(--ease); }
+.dialog { width: 940px; box-sizing: border-box; padding: 56px 60px; background: var(--panel); border: 1px solid var(--line); border-radius: 32px; }
+.dialog h3 { margin: 0; font: 700 52px/1.2 var(--font); }
+.dialog p { margin: 18px 0 40px; font-size: 38px; line-height: 1.45; color: var(--muted); }
+.dialog .row { display: flex; gap: 22px; }
+.toast {
+  position: absolute; left: 50%; bottom: 190px; transform: translateX(-50%); max-width: 1400px;
+  display: flex; gap: 16px; align-items: center; padding: 24px 38px; border-radius: 24px;
+  background: var(--focus-bg); color: var(--focus-fg); font-size: 34px; font-weight: 700;
+  box-shadow: 0 20px 50px rgba(0,0,0,.5); animation: fade .2s var(--ease);
+}
+.toast .ms { font-size: 42px; }
+@keyframes fade { from { opacity: 0 } }
+
+.guides { position: absolute; inset: 0; pointer-events: none; }
+.guides::before { content: ""; position: absolute; inset: var(--safe-y) var(--safe-x); border: 2px dashed rgba(255,214,102,.85); }
+.guides span { position: absolute; left: var(--safe-x); top: 12px; font-size: 26px; color: #ffd666; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="stage" id="stage"><div id="root"></div></div>
+
+<script src="stories.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+<script>
+/* @noriginmedia/norigin-spatial-navigation 2.1.0 (MIT) — pacote sem build para navegador; empacotado com esbuild usando window.React */
+var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Object.getOwnPropertyDescriptor;var Ja=Object.getOwnPropertyNames;var Qa=Object.getPrototypeOf,Va=Object.prototype.hasOwnProperty;var o=(e,t)=>()=>(t||e((t={exports:{}}).exports,t),t.exports);var Ge=(e,t,r,i)=>{if(t&&typeof t=="object"||typeof t=="function")for(let u of Ja(t))!Va.call(e,u)&&u!==r&&ct(e,u,{get:()=>t[u],enumerable:!(i=Za(t,u))||i.enumerable});return e},ft=(e,t,r)=>(Ge(e,t,"default"),r&&Ge(r,t,"default")),eu=(e,t,r)=>(r=e!=null?Xa(Qa(e)):{},Ge(t||!e||!e.__esModule?ct(r,"default",{value:e,enumerable:!0}):r,e)),tu=e=>Ge(ct({},"__esModule",{value:!0}),e);var ie=o((Sv,er)=>{function ru(e){var t=typeof e;return e!=null&&(t=="object"||t=="function")}er.exports=ru});var lt=o((Lv,tr)=>{var nu=typeof global=="object"&&global&&global.Object===Object&&global;tr.exports=nu});var V=o((Mv,rr)=>{var iu=lt(),ou=typeof self=="object"&&self&&self.Object===Object&&self,su=iu||ou||Function("return this")();rr.exports=su});var ir=o((Dv,nr)=>{var au=V(),uu=function(){return au.Date.now()};nr.exports=uu});var sr=o((Nv,or)=>{var cu=/\s/;function fu(e){for(var t=e.length;t--&&cu.test(e.charAt(t)););return t}or.exports=fu});var ur=o((Rv,ar)=>{var lu=sr(),du=/^\s+/;function pu(e){return e&&e.slice(0,lu(e)+1).replace(du,"")}ar.exports=pu});var le=o((Bv,cr)=>{var hu=V(),yu=hu.Symbol;cr.exports=yu});var pr=o((Iv,dr)=>{var fr=le(),lr=Object.prototype,gu=lr.hasOwnProperty,vu=lr.toString,Pe=fr?fr.toStringTag:void 0;function bu(e){var t=gu.call(e,Pe),r=e[Pe];try{e[Pe]=void 0;var i=!0}catch{}var u=vu.call(e);return i&&(t?e[Pe]=r:delete e[Pe]),u}dr.exports=bu});var yr=o((jv,hr)=>{var xu=Object.prototype,qu=xu.toString;function Cu(e){return qu.call(e)}hr.exports=Cu});var de=o((Uv,br)=>{var gr=le(),mu=pr(),Fu=yr(),_u="[object Null]",wu="[object Undefined]",vr=gr?gr.toStringTag:void 0;function Tu(e){return e==null?e===void 0?wu:_u:vr&&vr in Object(e)?mu(e):Fu(e)}br.exports=Tu});var ce=o((Hv,xr)=>{function Ku(e){return e!=null&&typeof e=="object"}xr.exports=Ku});var pe=o((Gv,qr)=>{var Au=de(),Ou=ce(),Eu="[object Symbol]";function Pu(e){return typeof e=="symbol"||Ou(e)&&Au(e)==Eu}qr.exports=Pu});var _r=o((kv,Fr)=>{var Su=ur(),Cr=ie(),Lu=pe(),mr=NaN,Mu=/^[-+]0x[0-9a-f]+$/i,Du=/^0b[01]+$/i,Nu=/^0o[0-7]+$/i,Ru=parseInt;function Bu(e){if(typeof e=="number")return e;if(Lu(e))return mr;if(Cr(e)){var t=typeof e.valueOf=="function"?e.valueOf():e;e=Cr(t)?t+"":t}if(typeof e!="string")return e===0?e:+e;e=Su(e);var r=Du.test(e);return r||Nu.test(e)?Ru(e.slice(2),r?2:8):Mu.test(e)?mr:+e}Fr.exports=Bu});var ke=o((zv,Tr)=>{var Iu=ie(),dt=ir(),wr=_r(),ju="Expected a function",Uu=Math.max,Hu=Math.min;function Gu(e,t,r){var i,u,c,p,h,q,F=0,B=!1,R=!1,D=!0;if(typeof e!="function")throw new TypeError(ju);t=wr(t)||0,Iu(r)&&(B=!!r.leading,R="maxWait"in r,c=R?Uu(wr(r.maxWait)||0,t):c,D="trailing"in r?!!r.trailing:D);function k(K){var x=i,_=u;return i=u=void 0,F=K,p=e.apply(_,x),p}function m(K){return F=K,h=setTimeout(v,t),B?k(K):p}function d(K){var x=K-q,_=K-F,$=t-x;return R?Hu($,c-_):$}function C(K){var x=K-q,_=K-F;return q===void 0||x>=t||x<0||R&&_>=c}function v(){var K=dt();if(C(K))return g(K);h=setTimeout(v,d(K))}function g(K){return h=void 0,D&&i?k(K):(i=u=void 0,p)}function P(){h!==void 0&&clearTimeout(h),F=0,i=q=u=h=void 0}function L(){return h===void 0?p:g(dt())}function O(){var K=dt(),x=C(K);if(i=arguments,u=this,q=K,x){if(h===void 0)return m(q);if(R)return clearTimeout(h),h=setTimeout(v,t),k(q)}return h===void 0&&(h=setTimeout(v,t)),p}return O.cancel=P,O.flush=L,O}Tr.exports=Gu});var pt=o((Wv,Kr)=>{var ku=de(),zu=ie(),Wu="[object AsyncFunction]",$u="[object Function]",Yu="[object GeneratorFunction]",Xu="[object Proxy]";function Zu(e){if(!zu(e))return!1;var t=ku(e);return t==$u||t==Yu||t==Wu||t==Xu}Kr.exports=Zu});var Or=o(($v,Ar)=>{var Ju=V(),Qu=Ju["__core-js_shared__"];Ar.exports=Qu});var Sr=o((Yv,Pr)=>{var ht=Or(),Er=function(){var e=/[^.]+$/.exec(ht&&ht.keys&&ht.keys.IE_PROTO||"");return e?"Symbol(src)_1."+e:""}();function Vu(e){return!!Er&&Er in e}Pr.exports=Vu});var yt=o((Xv,Lr)=>{var ec=Function.prototype,tc=ec.toString;function rc(e){if(e!=null){try{return tc.call(e)}catch{}try{return e+""}catch{}}return""}Lr.exports=rc});var Dr=o((Zv,Mr)=>{var nc=pt(),ic=Sr(),oc=ie(),sc=yt(),ac=/[\\^$.*+?()[\]{}|]/g,uc=/^\[object .+?Constructor\]$/,cc=Function.prototype,fc=Object.prototype,lc=cc.toString,dc=fc.hasOwnProperty,pc=RegExp("^"+lc.call(dc).replace(ac,"\\$&").replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g,"$1.*?")+"$");function hc(e){if(!oc(e)||ic(e))return!1;var t=nc(e)?pc:uc;return t.test(sc(e))}Mr.exports=hc});var Rr=o((Jv,Nr)=>{function yc(e,t){return e?.[t]}Nr.exports=yc});var oe=o((Qv,Br)=>{var gc=Dr(),vc=Rr();function bc(e,t){var r=vc(e,t);return gc(r)?r:void 0}Br.exports=bc});var Se=o((Vv,Ir)=>{var xc=oe(),qc=xc(Object,"create");Ir.exports=qc});var Hr=o((eb,Ur)=>{var jr=Se();function Cc(){this.__data__=jr?jr(null):{},this.size=0}Ur.exports=Cc});var kr=o((tb,Gr)=>{function mc(e){var t=this.has(e)&&delete this.__data__[e];return this.size-=t?1:0,t}Gr.exports=mc});var Wr=o((rb,zr)=>{var Fc=Se(),_c="__lodash_hash_undefined__",wc=Object.prototype,Tc=wc.hasOwnProperty;function Kc(e){var t=this.__data__;if(Fc){var r=t[e];return r===_c?void 0:r}return Tc.call(t,e)?t[e]:void 0}zr.exports=Kc});var Yr=o((nb,$r)=>{var Ac=Se(),Oc=Object.prototype,Ec=Oc.hasOwnProperty;function Pc(e){var t=this.__data__;return Ac?t[e]!==void 0:Ec.call(t,e)}$r.exports=Pc});var Zr=o((ib,Xr)=>{var Sc=Se(),Lc="__lodash_hash_undefined__";function Mc(e,t){var r=this.__data__;return this.size+=this.has(e)?0:1,r[e]=Sc&&t===void 0?Lc:t,this}Xr.exports=Mc});var Qr=o((ob,Jr)=>{var Dc=Hr(),Nc=kr(),Rc=Wr(),Bc=Yr(),Ic=Zr();function he(e){var t=-1,r=e==null?0:e.length;for(this.clear();++t<r;){var i=e[t];this.set(i[0],i[1])}}he.prototype.clear=Dc;he.prototype.delete=Nc;he.prototype.get=Rc;he.prototype.has=Bc;he.prototype.set=Ic;Jr.exports=he});var en=o((sb,Vr)=>{function jc(){this.__data__=[],this.size=0}Vr.exports=jc});var ze=o((ab,tn)=>{function Uc(e,t){return e===t||e!==e&&t!==t}tn.exports=Uc});var Le=o((ub,rn)=>{var Hc=ze();function Gc(e,t){for(var r=e.length;r--;)if(Hc(e[r][0],t))return r;return-1}rn.exports=Gc});var on=o((cb,nn)=>{var kc=Le(),zc=Array.prototype,Wc=zc.splice;function $c(e){var t=this.__data__,r=kc(t,e);if(r<0)return!1;var i=t.length-1;return r==i?t.pop():Wc.call(t,r,1),--this.size,!0}nn.exports=$c});var an=o((fb,sn)=>{var Yc=Le();function Xc(e){var t=this.__data__,r=Yc(t,e);return r<0?void 0:t[r][1]}sn.exports=Xc});var cn=o((lb,un)=>{var Zc=Le();function Jc(e){return Zc(this.__data__,e)>-1}un.exports=Jc});var ln=o((db,fn)=>{var Qc=Le();function Vc(e,t){var r=this.__data__,i=Qc(r,e);return i<0?(++this.size,r.push([e,t])):r[i][1]=t,this}fn.exports=Vc});var Me=o((pb,dn)=>{var ef=en(),tf=on(),rf=an(),nf=cn(),of=ln();function ye(e){var t=-1,r=e==null?0:e.length;for(this.clear();++t<r;){var i=e[t];this.set(i[0],i[1])}}ye.prototype.clear=ef;ye.prototype.delete=tf;ye.prototype.get=rf;ye.prototype.has=nf;ye.prototype.set=of;dn.exports=ye});var We=o((hb,pn)=>{var sf=oe(),af=V(),uf=sf(af,"Map");pn.exports=uf});var gn=o((yb,yn)=>{var hn=Qr(),cf=Me(),ff=We();function lf(){this.size=0,this.__data__={hash:new hn,map:new(ff||cf),string:new hn}}yn.exports=lf});var bn=o((gb,vn)=>{function df(e){var t=typeof e;return t=="string"||t=="number"||t=="symbol"||t=="boolean"?e!=="__proto__":e===null}vn.exports=df});var De=o((vb,xn)=>{var pf=bn();function hf(e,t){var r=e.__data__;return pf(t)?r[typeof t=="string"?"string":"hash"]:r.map}xn.exports=hf});var Cn=o((bb,qn)=>{var yf=De();function gf(e){var t=yf(this,e).delete(e);return this.size-=t?1:0,t}qn.exports=gf});var Fn=o((xb,mn)=>{var vf=De();function bf(e){return vf(this,e).get(e)}mn.exports=bf});var wn=o((qb,_n)=>{var xf=De();function qf(e){return xf(this,e).has(e)}_n.exports=qf});var Kn=o((Cb,Tn)=>{var Cf=De();function mf(e,t){var r=Cf(this,e),i=r.size;return r.set(e,t),this.size+=r.size==i?0:1,this}Tn.exports=mf});var $e=o((mb,An)=>{var Ff=gn(),_f=Cn(),wf=Fn(),Tf=wn(),Kf=Kn();function ge(e){var t=-1,r=e==null?0:e.length;for(this.clear();++t<r;){var i=e[t];this.set(i[0],i[1])}}ge.prototype.clear=Ff;ge.prototype.delete=_f;ge.prototype.get=wf;ge.prototype.has=Tf;ge.prototype.set=Kf;An.exports=ge});var En=o((Fb,On)=>{var Af="__lodash_hash_undefined__";function Of(e){return this.__data__.set(e,Af),this}On.exports=Of});var Sn=o((_b,Pn)=>{function Ef(e){return this.__data__.has(e)}Pn.exports=Ef});var gt=o((wb,Ln)=>{var Pf=$e(),Sf=En(),Lf=Sn();function Ye(e){var t=-1,r=e==null?0:e.length;for(this.__data__=new Pf;++t<r;)this.add(e[t])}Ye.prototype.add=Ye.prototype.push=Sf;Ye.prototype.has=Lf;Ln.exports=Ye});var Dn=o((Tb,Mn)=>{function Mf(e,t,r,i){for(var u=e.length,c=r+(i?1:-1);i?c--:++c<u;)if(t(e[c],c,e))return c;return-1}Mn.exports=Mf});var Rn=o((Kb,Nn)=>{function Df(e){return e!==e}Nn.exports=Df});var In=o((Ab,Bn)=>{function Nf(e,t,r){for(var i=r-1,u=e.length;++i<u;)if(e[i]===t)return i;return-1}Bn.exports=Nf});var Un=o((Ob,jn)=>{var Rf=Dn(),Bf=Rn(),If=In();function jf(e,t,r){return t===t?If(e,t,r):Rf(e,Bf,r)}jn.exports=jf});var Gn=o((Eb,Hn)=>{var Uf=Un();function Hf(e,t){var r=e==null?0:e.length;return!!r&&Uf(e,t,0)>-1}Hn.exports=Hf});var zn=o((Pb,kn)=>{function Gf(e,t,r){for(var i=-1,u=e==null?0:e.length;++i<u;)if(r(t,e[i]))return!0;return!1}kn.exports=Gf});var Xe=o((Sb,Wn)=>{function kf(e,t){for(var r=-1,i=e==null?0:e.length,u=Array(i);++r<i;)u[r]=t(e[r],r,e);return u}Wn.exports=kf});var Ze=o((Lb,$n)=>{function zf(e){return function(t){return e(t)}}$n.exports=zf});var vt=o((Mb,Yn)=>{function Wf(e,t){return e.has(t)}Yn.exports=Wf});var Zn=o((Db,Xn)=>{var $f=gt(),Yf=Gn(),Xf=zn(),Zf=Xe(),Jf=Ze(),Qf=vt(),Vf=200;function el(e,t,r,i){var u=-1,c=Yf,p=!0,h=e.length,q=[],F=t.length;if(!h)return q;r&&(t=Zf(t,Jf(r))),i?(c=Xf,p=!1):t.length>=Vf&&(c=Qf,p=!1,t=new $f(t));e:for(;++u<h;){var B=e[u],R=r==null?B:r(B);if(B=i||B!==0?B:0,p&&R===R){for(var D=F;D--;)if(t[D]===R)continue e;q.push(B)}else c(t,R,i)||q.push(B)}return q}Xn.exports=el});var bt=o((Nb,Jn)=>{function tl(e,t){for(var r=-1,i=t.length,u=e.length;++r<i;)e[u+r]=t[r];return e}Jn.exports=tl});var Vn=o((Rb,Qn)=>{var rl=de(),nl=ce(),il="[object Arguments]";function ol(e){return nl(e)&&rl(e)==il}Qn.exports=ol});var Je=o((Bb,ri)=>{var ei=Vn(),sl=ce(),ti=Object.prototype,al=ti.hasOwnProperty,ul=ti.propertyIsEnumerable,cl=ei(function(){return arguments}())?ei:function(e){return sl(e)&&al.call(e,"callee")&&!ul.call(e,"callee")};ri.exports=cl});var J=o((Ib,ni)=>{var fl=Array.isArray;ni.exports=fl});var ai=o((jb,si)=>{var ii=le(),ll=Je(),dl=J(),oi=ii?ii.isConcatSpreadable:void 0;function pl(e){return dl(e)||ll(e)||!!(oi&&e&&e[oi])}si.exports=pl});var xt=o((Ub,ci)=>{var hl=bt(),yl=ai();function ui(e,t,r,i,u){var c=-1,p=e.length;for(r||(r=yl),u||(u=[]);++c<p;){var h=e[c];t>0&&r(h)?t>1?ui(h,t-1,r,i,u):hl(u,h):i||(u[u.length]=h)}return u}ci.exports=ui});var ve=o((Hb,fi)=>{function gl(e){return e}fi.exports=gl});var di=o((Gb,li)=>{function vl(e,t,r){switch(r.length){case 0:return e.call(t);case 1:return e.call(t,r[0]);case 2:return e.call(t,r[0],r[1]);case 3:return e.call(t,r[0],r[1],r[2])}return e.apply(t,r)}li.exports=vl});var yi=o((kb,hi)=>{var bl=di(),pi=Math.max;function xl(e,t,r){return t=pi(t===void 0?e.length-1:t,0),function(){for(var i=arguments,u=-1,c=pi(i.length-t,0),p=Array(c);++u<c;)p[u]=i[t+u];u=-1;for(var h=Array(t+1);++u<t;)h[u]=i[u];return h[t]=r(p),bl(e,this,h)}}hi.exports=xl});var vi=o((zb,gi)=>{function ql(e){return function(){return e}}gi.exports=ql});var xi=o((Wb,bi)=>{var Cl=oe(),ml=function(){try{var e=Cl(Object,"defineProperty");return e({},"",{}),e}catch{}}();bi.exports=ml});var mi=o(($b,Ci)=>{var Fl=vi(),qi=xi(),_l=ve(),wl=qi?function(e,t){return qi(e,"toString",{configurable:!0,enumerable:!1,value:Fl(t),writable:!0})}:_l;Ci.exports=wl});var _i=o((Yb,Fi)=>{var Tl=800,Kl=16,Al=Date.now;function Ol(e){var t=0,r=0;return function(){var i=Al(),u=Kl-(i-r);if(r=i,u>0){if(++t>=Tl)return arguments[0]}else t=0;return e.apply(void 0,arguments)}}Fi.exports=Ol});var Ti=o((Xb,wi)=>{var El=mi(),Pl=_i(),Sl=Pl(El);wi.exports=Sl});var qt=o((Zb,Ki)=>{var Ll=ve(),Ml=yi(),Dl=Ti();function Nl(e,t){return Dl(Ml(e,t,Ll),e+"")}Ki.exports=Nl});var Qe=o((Jb,Ai)=>{var Rl=9007199254740991;function Bl(e){return typeof e=="number"&&e>-1&&e%1==0&&e<=Rl}Ai.exports=Bl});var be=o((Qb,Oi)=>{var Il=pt(),jl=Qe();function Ul(e){return e!=null&&jl(e.length)&&!Il(e)}Oi.exports=Ul});var Pi=o((Vb,Ei)=>{var Hl=be(),Gl=ce();function kl(e){return Gl(e)&&Hl(e)}Ei.exports=kl});var Ct=o((ex,Li)=>{var zl=Zn(),Wl=xt(),$l=qt(),Si=Pi(),Yl=$l(function(e,t){return Si(e)?zl(e,Wl(t,1,Si,!0)):[]});Li.exports=Yl});var mt=o((tx,Mi)=>{function Xl(e,t){for(var r=-1,i=e==null?0:e.length,u=0,c=[];++r<i;){var p=e[r];t(p,r,e)&&(c[u++]=p)}return c}Mi.exports=Xl});var Ni=o((rx,Di)=>{function Zl(e){return function(t,r,i){for(var u=-1,c=Object(t),p=i(t),h=p.length;h--;){var q=p[e?h:++u];if(r(c[q],q,c)===!1)break}return t}}Di.exports=Zl});var Bi=o((nx,Ri)=>{var Jl=Ni(),Ql=Jl();Ri.exports=Ql});var ji=o((ix,Ii)=>{function Vl(e,t){for(var r=-1,i=Array(e);++r<e;)i[r]=t(r);return i}Ii.exports=Vl});var Hi=o((ox,Ui)=>{function ed(){return!1}Ui.exports=ed});var Ft=o((Ne,xe)=>{var td=V(),rd=Hi(),zi=typeof Ne=="object"&&Ne&&!Ne.nodeType&&Ne,Gi=zi&&typeof xe=="object"&&xe&&!xe.nodeType&&xe,nd=Gi&&Gi.exports===zi,ki=nd?td.Buffer:void 0,id=ki?ki.isBuffer:void 0,od=id||rd;xe.exports=od});var Ve=o((sx,Wi)=>{var sd=9007199254740991,ad=/^(?:0|[1-9]\d*)$/;function ud(e,t){var r=typeof e;return t=t??sd,!!t&&(r=="number"||r!="symbol"&&ad.test(e))&&e>-1&&e%1==0&&e<t}Wi.exports=ud});var Yi=o((ax,$i)=>{var cd=de(),fd=Qe(),ld=ce(),dd="[object Arguments]",pd="[object Array]",hd="[object Boolean]",yd="[object Date]",gd="[object Error]",vd="[object Function]",bd="[object Map]",xd="[object Number]",qd="[object Object]",Cd="[object RegExp]",md="[object Set]",Fd="[object String]",_d="[object WeakMap]",wd="[object ArrayBuffer]",Td="[object DataView]",Kd="[object Float32Array]",Ad="[object Float64Array]",Od="[object Int8Array]",Ed="[object Int16Array]",Pd="[object Int32Array]",Sd="[object Uint8Array]",Ld="[object Uint8ClampedArray]",Md="[object Uint16Array]",Dd="[object Uint32Array]",j={};j[Kd]=j[Ad]=j[Od]=j[Ed]=j[Pd]=j[Sd]=j[Ld]=j[Md]=j[Dd]=!0;j[dd]=j[pd]=j[wd]=j[hd]=j[Td]=j[yd]=j[gd]=j[vd]=j[bd]=j[xd]=j[qd]=j[Cd]=j[md]=j[Fd]=j[_d]=!1;function Nd(e){return ld(e)&&fd(e.length)&&!!j[cd(e)]}$i.exports=Nd});var Zi=o((Re,qe)=>{var Rd=lt(),Xi=typeof Re=="object"&&Re&&!Re.nodeType&&Re,Be=Xi&&typeof qe=="object"&&qe&&!qe.nodeType&&qe,Bd=Be&&Be.exports===Xi,_t=Bd&&Rd.process,Id=function(){try{var e=Be&&Be.require&&Be.require("util").types;return e||_t&&_t.binding&&_t.binding("util")}catch{}}();qe.exports=Id});var wt=o((ux,Vi)=>{var jd=Yi(),Ud=Ze(),Ji=Zi(),Qi=Ji&&Ji.isTypedArray,Hd=Qi?Ud(Qi):jd;Vi.exports=Hd});var to=o((cx,eo)=>{var Gd=ji(),kd=Je(),zd=J(),Wd=Ft(),$d=Ve(),Yd=wt(),Xd=Object.prototype,Zd=Xd.hasOwnProperty;function Jd(e,t){var r=zd(e),i=!r&&kd(e),u=!r&&!i&&Wd(e),c=!r&&!i&&!u&&Yd(e),p=r||i||u||c,h=p?Gd(e.length,String):[],q=h.length;for(var F in e)(t||Zd.call(e,F))&&!(p&&(F=="length"||u&&(F=="offset"||F=="parent")||c&&(F=="buffer"||F=="byteLength"||F=="byteOffset")||$d(F,q)))&&h.push(F);return h}eo.exports=Jd});var no=o((fx,ro)=>{var Qd=Object.prototype;function Vd(e){var t=e&&e.constructor,r=typeof t=="function"&&t.prototype||Qd;return e===r}ro.exports=Vd});var oo=o((lx,io)=>{function ep(e,t){return function(r){return e(t(r))}}io.exports=ep});var ao=o((dx,so)=>{var tp=oo(),rp=tp(Object.keys,Object);so.exports=rp});var co=o((px,uo)=>{var np=no(),ip=ao(),op=Object.prototype,sp=op.hasOwnProperty;function ap(e){if(!np(e))return ip(e);var t=[];for(var r in Object(e))sp.call(e,r)&&r!="constructor"&&t.push(r);return t}uo.exports=ap});var et=o((hx,fo)=>{var up=to(),cp=co(),fp=be();function lp(e){return fp(e)?up(e):cp(e)}fo.exports=lp});var tt=o((yx,lo)=>{var dp=Bi(),pp=et();function hp(e,t){return e&&dp(e,t,pp)}lo.exports=hp});var ho=o((gx,po)=>{var yp=be();function gp(e,t){return function(r,i){if(r==null)return r;if(!yp(r))return e(r,i);for(var u=r.length,c=t?u:-1,p=Object(r);(t?c--:++c<u)&&i(p[c],c,p)!==!1;);return r}}po.exports=gp});var rt=o((vx,yo)=>{var vp=tt(),bp=ho(),xp=bp(vp);yo.exports=xp});var vo=o((bx,go)=>{var qp=rt();function Cp(e,t){var r=[];return qp(e,function(i,u,c){t(i,u,c)&&r.push(i)}),r}go.exports=Cp});var xo=o((xx,bo)=>{var mp=Me();function Fp(){this.__data__=new mp,this.size=0}bo.exports=Fp});var Co=o((qx,qo)=>{function _p(e){var t=this.__data__,r=t.delete(e);return this.size=t.size,r}qo.exports=_p});var Fo=o((Cx,mo)=>{function wp(e){return this.__data__.get(e)}mo.exports=wp});var wo=o((mx,_o)=>{function Tp(e){return this.__data__.has(e)}_o.exports=Tp});var Ko=o((Fx,To)=>{var Kp=Me(),Ap=We(),Op=$e(),Ep=200;function Pp(e,t){var r=this.__data__;if(r instanceof Kp){var i=r.__data__;if(!Ap||i.length<Ep-1)return i.push([e,t]),this.size=++r.size,this;r=this.__data__=new Op(i)}return r.set(e,t),this.size=r.size,this}To.exports=Pp});var Tt=o((_x,Ao)=>{var Sp=Me(),Lp=xo(),Mp=Co(),Dp=Fo(),Np=wo(),Rp=Ko();function Ce(e){var t=this.__data__=new Sp(e);this.size=t.size}Ce.prototype.clear=Lp;Ce.prototype.delete=Mp;Ce.prototype.get=Dp;Ce.prototype.has=Np;Ce.prototype.set=Rp;Ao.exports=Ce});var Eo=o((wx,Oo)=>{function Bp(e,t){for(var r=-1,i=e==null?0:e.length;++r<i;)if(t(e[r],r,e))return!0;return!1}Oo.exports=Bp});var Kt=o((Tx,Po)=>{var Ip=gt(),jp=Eo(),Up=vt(),Hp=1,Gp=2;function kp(e,t,r,i,u,c){var p=r&Hp,h=e.length,q=t.length;if(h!=q&&!(p&&q>h))return!1;var F=c.get(e),B=c.get(t);if(F&&B)return F==t&&B==e;var R=-1,D=!0,k=r&Gp?new Ip:void 0;for(c.set(e,t),c.set(t,e);++R<h;){var m=e[R],d=t[R];if(i)var C=p?i(d,m,R,t,e,c):i(m,d,R,e,t,c);if(C!==void 0){if(C)continue;D=!1;break}if(k){if(!jp(t,function(v,g){if(!Up(k,g)&&(m===v||u(m,v,r,i,c)))return k.push(g)})){D=!1;break}}else if(!(m===d||u(m,d,r,i,c))){D=!1;break}}return c.delete(e),c.delete(t),D}Po.exports=kp});var Lo=o((Kx,So)=>{var zp=V(),Wp=zp.Uint8Array;So.exports=Wp});var Do=o((Ax,Mo)=>{function $p(e){var t=-1,r=Array(e.size);return e.forEach(function(i,u){r[++t]=[u,i]}),r}Mo.exports=$p});var Ro=o((Ox,No)=>{function Yp(e){var t=-1,r=Array(e.size);return e.forEach(function(i){r[++t]=i}),r}No.exports=Yp});var Ho=o((Ex,Uo)=>{var Bo=le(),Io=Lo(),Xp=ze(),Zp=Kt(),Jp=Do(),Qp=Ro(),Vp=1,eh=2,th="[object Boolean]",rh="[object Date]",nh="[object Error]",ih="[object Map]",oh="[object Number]",sh="[object RegExp]",ah="[object Set]",uh="[object String]",ch="[object Symbol]",fh="[object ArrayBuffer]",lh="[object DataView]",jo=Bo?Bo.prototype:void 0,At=jo?jo.valueOf:void 0;function dh(e,t,r,i,u,c,p){switch(r){case lh:if(e.byteLength!=t.byteLength||e.byteOffset!=t.byteOffset)return!1;e=e.buffer,t=t.buffer;case fh:return!(e.byteLength!=t.byteLength||!c(new Io(e),new Io(t)));case th:case rh:case oh:return Xp(+e,+t);case nh:return e.name==t.name&&e.message==t.message;case sh:case uh:return e==t+"";case ih:var h=Jp;case ah:var q=i&Vp;if(h||(h=Qp),e.size!=t.size&&!q)return!1;var F=p.get(e);if(F)return F==t;i|=eh,p.set(e,t);var B=Zp(h(e),h(t),i,u,c,p);return p.delete(e),B;case ch:if(At)return At.call(e)==At.call(t)}return!1}Uo.exports=dh});var ko=o((Px,Go)=>{var ph=bt(),hh=J();function yh(e,t,r){var i=t(e);return hh(e)?i:ph(i,r(e))}Go.exports=yh});var Wo=o((Sx,zo)=>{function gh(){return[]}zo.exports=gh});var Xo=o((Lx,Yo)=>{var vh=mt(),bh=Wo(),xh=Object.prototype,qh=xh.propertyIsEnumerable,$o=Object.getOwnPropertySymbols,Ch=$o?function(e){return e==null?[]:(e=Object(e),vh($o(e),function(t){return qh.call(e,t)}))}:bh;Yo.exports=Ch});var Jo=o((Mx,Zo)=>{var mh=ko(),Fh=Xo(),_h=et();function wh(e){return mh(e,_h,Fh)}Zo.exports=wh});var es=o((Dx,Vo)=>{var Qo=Jo(),Th=1,Kh=Object.prototype,Ah=Kh.hasOwnProperty;function Oh(e,t,r,i,u,c){var p=r&Th,h=Qo(e),q=h.length,F=Qo(t),B=F.length;if(q!=B&&!p)return!1;for(var R=q;R--;){var D=h[R];if(!(p?D in t:Ah.call(t,D)))return!1}var k=c.get(e),m=c.get(t);if(k&&m)return k==t&&m==e;var d=!0;c.set(e,t),c.set(t,e);for(var C=p;++R<q;){D=h[R];var v=e[D],g=t[D];if(i)var P=p?i(g,v,D,t,e,c):i(v,g,D,e,t,c);if(!(P===void 0?v===g||u(v,g,r,i,c):P)){d=!1;break}C||(C=D=="constructor")}if(d&&!C){var L=e.constructor,O=t.constructor;L!=O&&"constructor"in e&&"constructor"in t&&!(typeof L=="function"&&L instanceof L&&typeof O=="function"&&O instanceof O)&&(d=!1)}return c.delete(e),c.delete(t),d}Vo.exports=Oh});var rs=o((Nx,ts)=>{var Eh=oe(),Ph=V(),Sh=Eh(Ph,"DataView");ts.exports=Sh});var is=o((Rx,ns)=>{var Lh=oe(),Mh=V(),Dh=Lh(Mh,"Promise");ns.exports=Dh});var ss=o((Bx,os)=>{var Nh=oe(),Rh=V(),Bh=Nh(Rh,"Set");os.exports=Bh});var us=o((Ix,as)=>{var Ih=oe(),jh=V(),Uh=Ih(jh,"WeakMap");as.exports=Uh});var gs=o((jx,ys)=>{var Ot=rs(),Et=We(),Pt=is(),St=ss(),Lt=us(),hs=de(),me=yt(),cs="[object Map]",Hh="[object Object]",fs="[object Promise]",ls="[object Set]",ds="[object WeakMap]",ps="[object DataView]",Gh=me(Ot),kh=me(Et),zh=me(Pt),Wh=me(St),$h=me(Lt),fe=hs;(Ot&&fe(new Ot(new ArrayBuffer(1)))!=ps||Et&&fe(new Et)!=cs||Pt&&fe(Pt.resolve())!=fs||St&&fe(new St)!=ls||Lt&&fe(new Lt)!=ds)&&(fe=function(e){var t=hs(e),r=t==Hh?e.constructor:void 0,i=r?me(r):"";if(i)switch(i){case Gh:return ps;case kh:return cs;case zh:return fs;case Wh:return ls;case $h:return ds}return t});ys.exports=fe});var _s=o((Ux,Fs)=>{var Mt=Tt(),Yh=Kt(),Xh=Ho(),Zh=es(),vs=gs(),bs=J(),xs=Ft(),Jh=wt(),Qh=1,qs="[object Arguments]",Cs="[object Array]",nt="[object Object]",Vh=Object.prototype,ms=Vh.hasOwnProperty;function ey(e,t,r,i,u,c){var p=bs(e),h=bs(t),q=p?Cs:vs(e),F=h?Cs:vs(t);q=q==qs?nt:q,F=F==qs?nt:F;var B=q==nt,R=F==nt,D=q==F;if(D&&xs(e)){if(!xs(t))return!1;p=!0,B=!1}if(D&&!B)return c||(c=new Mt),p||Jh(e)?Yh(e,t,r,i,u,c):Xh(e,t,q,r,i,u,c);if(!(r&Qh)){var k=B&&ms.call(e,"__wrapped__"),m=R&&ms.call(t,"__wrapped__");if(k||m){var d=k?e.value():e,C=m?t.value():t;return c||(c=new Mt),u(d,C,r,i,c)}}return D?(c||(c=new Mt),Zh(e,t,r,i,u,c)):!1}Fs.exports=ey});var Dt=o((Hx,Ks)=>{var ty=_s(),ws=ce();function Ts(e,t,r,i,u){return e===t?!0:e==null||t==null||!ws(e)&&!ws(t)?e!==e&&t!==t:ty(e,t,r,i,Ts,u)}Ks.exports=Ts});var Os=o((Gx,As)=>{var ry=Tt(),ny=Dt(),iy=1,oy=2;function sy(e,t,r,i){var u=r.length,c=u,p=!i;if(e==null)return!c;for(e=Object(e);u--;){var h=r[u];if(p&&h[2]?h[1]!==e[h[0]]:!(h[0]in e))return!1}for(;++u<c;){h=r[u];var q=h[0],F=e[q],B=h[1];if(p&&h[2]){if(F===void 0&&!(q in e))return!1}else{var R=new ry;if(i)var D=i(F,B,q,e,t,R);if(!(D===void 0?ny(B,F,iy|oy,i,R):D))return!1}}return!0}As.exports=sy});var Nt=o((kx,Es)=>{var ay=ie();function uy(e){return e===e&&!ay(e)}Es.exports=uy});var Ss=o((zx,Ps)=>{var cy=Nt(),fy=et();function ly(e){for(var t=fy(e),r=t.length;r--;){var i=t[r],u=e[i];t[r]=[i,u,cy(u)]}return t}Ps.exports=ly});var Rt=o((Wx,Ls)=>{function dy(e,t){return function(r){return r==null?!1:r[e]===t&&(t!==void 0||e in Object(r))}}Ls.exports=dy});var Ds=o(($x,Ms)=>{var py=Os(),hy=Ss(),yy=Rt();function gy(e){var t=hy(e);return t.length==1&&t[0][2]?yy(t[0][0],t[0][1]):function(r){return r===e||py(r,e,t)}}Ms.exports=gy});var it=o((Yx,Ns)=>{var vy=J(),by=pe(),xy=/\.|\[(?:[^[\]]*|(["'])(?:(?!\1)[^\\]|\\.)*?\1)\]/,qy=/^\w*$/;function Cy(e,t){if(vy(e))return!1;var r=typeof e;return r=="number"||r=="symbol"||r=="boolean"||e==null||by(e)?!0:qy.test(e)||!xy.test(e)||t!=null&&e in Object(t)}Ns.exports=Cy});var Is=o((Xx,Bs)=>{var Rs=$e(),my="Expected a function";function Bt(e,t){if(typeof e!="function"||t!=null&&typeof t!="function")throw new TypeError(my);var r=function(){var i=arguments,u=t?t.apply(this,i):i[0],c=r.cache;if(c.has(u))return c.get(u);var p=e.apply(this,i);return r.cache=c.set(u,p)||c,p};return r.cache=new(Bt.Cache||Rs),r}Bt.Cache=Rs;Bs.exports=Bt});var Us=o((Zx,js)=>{var Fy=Is(),_y=500;function wy(e){var t=Fy(e,function(i){return r.size===_y&&r.clear(),i}),r=t.cache;return t}js.exports=wy});var Gs=o((Jx,Hs)=>{var Ty=Us(),Ky=/[^.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\\]|\\.)*?)\2)\]|(?=(?:\.|\[\])(?:\.|\[\]|$))/g,Ay=/\\(\\)?/g,Oy=Ty(function(e){var t=[];return e.charCodeAt(0)===46&&t.push(""),e.replace(Ky,function(r,i,u,c){t.push(u?c.replace(Ay,"$1"):i||r)}),t});Hs.exports=Oy});var Xs=o((Qx,Ys)=>{var ks=le(),Ey=Xe(),Py=J(),Sy=pe(),Ly=1/0,zs=ks?ks.prototype:void 0,Ws=zs?zs.toString:void 0;function $s(e){if(typeof e=="string")return e;if(Py(e))return Ey(e,$s)+"";if(Sy(e))return Ws?Ws.call(e):"";var t=e+"";return t=="0"&&1/e==-Ly?"-0":t}Ys.exports=$s});var It=o((Vx,Zs)=>{var My=Xs();function Dy(e){return e==null?"":My(e)}Zs.exports=Dy});var jt=o((eq,Js)=>{var Ny=J(),Ry=it(),By=Gs(),Iy=It();function jy(e,t){return Ny(e)?e:Ry(e,t)?[e]:By(Iy(e))}Js.exports=jy});var Ie=o((tq,Qs)=>{var Uy=pe(),Hy=1/0;function Gy(e){if(typeof e=="string"||Uy(e))return e;var t=e+"";return t=="0"&&1/e==-Hy?"-0":t}Qs.exports=Gy});var ot=o((rq,Vs)=>{var ky=jt(),zy=Ie();function Wy(e,t){t=ky(t,e);for(var r=0,i=t.length;e!=null&&r<i;)e=e[zy(t[r++])];return r&&r==i?e:void 0}Vs.exports=Wy});var ta=o((nq,ea)=>{var $y=ot();function Yy(e,t,r){var i=e==null?void 0:$y(e,t);return i===void 0?r:i}ea.exports=Yy});var na=o((iq,ra)=>{function Xy(e,t){return e!=null&&t in Object(e)}ra.exports=Xy});var oa=o((oq,ia)=>{var Zy=jt(),Jy=Je(),Qy=J(),Vy=Ve(),eg=Qe(),tg=Ie();function rg(e,t,r){t=Zy(t,e);for(var i=-1,u=t.length,c=!1;++i<u;){var p=tg(t[i]);if(!(c=e!=null&&r(e,p)))break;e=e[p]}return c||++i!=u?c:(u=e==null?0:e.length,!!u&&eg(u)&&Vy(p,u)&&(Qy(e)||Jy(e)))}ia.exports=rg});var aa=o((sq,sa)=>{var ng=na(),ig=oa();function og(e,t){return e!=null&&ig(e,t,ng)}sa.exports=og});var ca=o((aq,ua)=>{var sg=Dt(),ag=ta(),ug=aa(),cg=it(),fg=Nt(),lg=Rt(),dg=Ie(),pg=1,hg=2;function yg(e,t){return cg(e)&&fg(t)?lg(dg(e),t):function(r){var i=ag(r,e);return i===void 0&&i===t?ug(r,e):sg(t,i,pg|hg)}}ua.exports=yg});var la=o((uq,fa)=>{function gg(e){return function(t){return t?.[e]}}fa.exports=gg});var pa=o((cq,da)=>{var vg=ot();function bg(e){return function(t){return vg(t,e)}}da.exports=bg});var ya=o((fq,ha)=>{var xg=la(),qg=pa(),Cg=it(),mg=Ie();function Fg(e){return Cg(e)?xg(mg(e)):qg(e)}ha.exports=Fg});var st=o((lq,ga)=>{var _g=Ds(),wg=ca(),Tg=ve(),Kg=J(),Ag=ya();function Og(e){return typeof e=="function"?e:e==null?Tg:typeof e=="object"?Kg(e)?wg(e[0],e[1]):_g(e):Ag(e)}ga.exports=Og});var Ut=o((dq,va)=>{var Eg=mt(),Pg=vo(),Sg=st(),Lg=J();function Mg(e,t){var r=Lg(e)?Eg:Pg;return r(e,Sg(t,3))}va.exports=Mg});var xa=o((pq,ba)=>{function Dg(e,t,r){var i;return r(e,function(u,c,p){if(t(u,c,p))return i=c,!1}),i}ba.exports=Dg});var Ht=o((hq,qa)=>{var Ng=xa(),Rg=tt(),Bg=st();function Ig(e,t){return Ng(e,Bg(t,3),Rg)}qa.exports=Ig});var ma=o((yq,Ca)=>{function jg(e){return e&&e.length?e[0]:void 0}Ca.exports=jg});var Gt=o((gq,Fa)=>{Fa.exports=ma()});var wa=o((vq,_a)=>{function Ug(e,t){for(var r=-1,i=e==null?0:e.length;++r<i&&t(e[r],r,e)!==!1;);return e}_a.exports=Ug});var kt=o((bq,Ta)=>{var Hg=ve();function Gg(e){return typeof e=="function"?e:Hg}Ta.exports=Gg});var zt=o((xq,Ka)=>{var kg=wa(),zg=rt(),Wg=kt(),$g=J();function Yg(e,t){var r=$g(e)?kg:zg;return r(e,Wg(t))}Ka.exports=Yg});var Wt=o((qq,Aa)=>{var Xg=tt(),Zg=kt();function Jg(e,t){return e&&Xg(e,Zg(t))}Aa.exports=Jg});var $t=o((Cq,Oa)=>{function Qg(){}Oa.exports=Qg});var Pa=o((mq,Ea)=>{var Vg=rt(),ev=be();function tv(e,t){var r=-1,i=ev(e)?Array(e.length):[];return Vg(e,function(u,c,p){i[++r]=t(u,c,p)}),i}Ea.exports=tv});var La=o((Fq,Sa)=>{function rv(e,t){var r=e.length;for(e.sort(t);r--;)e[r]=e[r].value;return e}Sa.exports=rv});var Na=o((_q,Da)=>{var Ma=pe();function nv(e,t){if(e!==t){var r=e!==void 0,i=e===null,u=e===e,c=Ma(e),p=t!==void 0,h=t===null,q=t===t,F=Ma(t);if(!h&&!F&&!c&&e>t||c&&p&&q&&!h&&!F||i&&p&&q||!r&&q||!u)return 1;if(!i&&!c&&!F&&e<t||F&&r&&u&&!i&&!c||h&&r&&u||!p&&u||!q)return-1}return 0}Da.exports=nv});var Ba=o((wq,Ra)=>{var iv=Na();function ov(e,t,r){for(var i=-1,u=e.criteria,c=t.criteria,p=u.length,h=r.length;++i<p;){var q=iv(u[i],c[i]);if(q){if(i>=h)return q;var F=r[i];return q*(F=="desc"?-1:1)}}return e.index-t.index}Ra.exports=ov});var ja=o((Tq,Ia)=>{var Yt=Xe(),sv=ot(),av=st(),uv=Pa(),cv=La(),fv=Ze(),lv=Ba(),dv=ve(),pv=J();function hv(e,t,r){t.length?t=Yt(t,function(c){return pv(c)?function(p){return sv(p,c.length===1?c[0]:c)}:c}):t=[dv];var i=-1;t=Yt(t,fv(av));var u=uv(e,function(c,p,h){var q=Yt(t,function(F){return F(c)});return{criteria:q,index:++i,value:c}});return cv(u,function(c,p){return lv(c,p,r)})}Ia.exports=hv});var Ha=o((Kq,Ua)=>{var yv=ze(),gv=be(),vv=Ve(),bv=ie();function xv(e,t,r){if(!bv(r))return!1;var i=typeof t;return(i=="number"?gv(r)&&vv(t,r.length):i=="string"&&t in r)?yv(r[t],e):!1}Ua.exports=xv});var Xt=o((Aq,ka)=>{var qv=xt(),Cv=ja(),mv=qt(),Ga=Ha(),Fv=mv(function(e,t){if(e==null)return[];var r=t.length;return r>1&&Ga(e,t[0],t[1])?t=[]:r>2&&Ga(t[0],t[1],t[2])&&(t=[t[0]]),Cv(e,qv(t,1),[])});ka.exports=Fv});var Zt=o((Oq,za)=>{var _v=ke(),wv=ie(),Tv="Expected a function";function Kv(e,t,r){var i=!0,u=!0;if(typeof e!="function")throw new TypeError(Tv);return wv(r)&&(i="leading"in r?!!r.leading:i,u="trailing"in r?!!r.trailing:u),_v(e,t,{leading:i,maxWait:t,trailing:u})}za.exports=Kv});var Jt=o((Eq,Wa)=>{var Av=It(),Ov=0;function Ev(e){var t=++Ov;return Av(e)+t}Wa.exports=Ev});var Qt=o((Pq,$a)=>{$a.exports=window.React});var Ya=o((Fe,Vt)=>{(function(e,t){if(typeof Fe=="object"&&typeof Vt=="object")Vt.exports=t(ke(),Ct(),Ut(),Ht(),Gt(),zt(),Wt(),$t(),Xt(),Zt(),Jt(),Qt());else if(typeof define=="function"&&define.amd)define(["lodash/debounce","lodash/difference","lodash/filter","lodash/findKey","lodash/first","lodash/forEach","lodash/forOwn","lodash/noop","lodash/sortBy","lodash/throttle","lodash/uniqueId","react"],t);else{var r=typeof Fe=="object"?t(ke(),Ct(),Ut(),Ht(),Gt(),zt(),Wt(),$t(),Xt(),Zt(),Jt(),Qt()):t(e["lodash/debounce"],e["lodash/difference"],e["lodash/filter"],e["lodash/findKey"],e["lodash/first"],e["lodash/forEach"],e["lodash/forOwn"],e["lodash/noop"],e["lodash/sortBy"],e["lodash/throttle"],e["lodash/uniqueId"],e.react);for(var i in r)(typeof Fe=="object"?Fe:e)[i]=r[i]}})(Fe,function(e,t,r,i,u,c,p,h,q,F,B,R){return function(){"use strict";var D={654:function(m,d,C){var v,g=this&&this.__assign||function(){return g=Object.assign||function(l){for(var n,s=1,a=arguments.length;s<a;s++)for(var f in n=arguments[s])Object.prototype.hasOwnProperty.call(n,f)&&(l[f]=n[f]);return l},g.apply(this,arguments)},P=this&&this.__createBinding||(Object.create?function(l,n,s,a){a===void 0&&(a=s);var f=Object.getOwnPropertyDescriptor(n,s);f&&!("get"in f?!n.__esModule:f.writable||f.configurable)||(f={enumerable:!0,get:function(){return n[s]}}),Object.defineProperty(l,a,f)}:function(l,n,s,a){a===void 0&&(a=s),l[a]=n[s]}),L=this&&this.__setModuleDefault||(Object.create?function(l,n){Object.defineProperty(l,"default",{enumerable:!0,value:n})}:function(l,n){l.default=n}),O=this&&this.__importStar||function(l){if(l&&l.__esModule)return l;var n={};if(l!=null)for(var s in l)s!=="default"&&Object.prototype.hasOwnProperty.call(l,s)&&P(n,l,s);return L(n,l),n},K=this&&this.__spreadArray||function(l,n,s){if(s||arguments.length===2)for(var a,f=0,y=n.length;f<y;f++)!a&&f in n||(a||(a=Array.prototype.slice.call(n,0,f)),a[f]=n[f]);return l.concat(a||Array.prototype.slice.call(n))},x=this&&this.__importDefault||function(l){return l&&l.__esModule?l:{default:l}};Object.defineProperty(d,"__esModule",{value:!0}),d.doesFocusableExist=d.getCurrentFocusKey=d.updateAllLayouts=d.resume=d.pause=d.navigateByDirection=d.setFocus=d.setKeyMap=d.destroy=d.setThrottle=d.init=d.SpatialNavigation=d.ROOT_FOCUS_KEY=void 0;var _=x(C(150)),$=x(C(117)),z=x(C(747)),I=x(C(23)),Y=x(C(842)),_e=x(C(682)),we=x(C(784)),Te=x(C(432)),ut=x(C(67)),je=x(C(35)),ee=x(C(119)),Ke=O(C(964)),se="left",ae="right",ue="up",te="down",Ae="enter",Oe=((v={}).left=[37,"ArrowLeft"],v.up=[38,"ArrowUp"],v.right=[39,"ArrowRight"],v.down=[40,"ArrowDown"],v.enter=[13,"Enter"],v);d.ROOT_FOCUS_KEY="SN:ROOT";var Ee=["#0FF","#FF0","#F0F"],Ue={leading:!0,trailing:!1},He=function(){function l(){this.focusableComponents={},this.focusKey=null,this.parentsHavingFocusedChild=[],this.enabled=!1,this.nativeMode=!1,this.throttle=0,this.throttleKeypresses=!1,this.useGetBoundingClientRect=!1,this.shouldFocusDOMNode=!1,this.shouldUseNativeEvents=!1,this.writingDirection=ee.default.LTR,this.pressedKeys={},this.paused=!1,this.keyDownEventListener=null,this.keyUpEventListener=null,this.keyMap=Oe,this.onKeyEvent=this.onKeyEvent.bind(this),this.pause=this.pause.bind(this),this.resume=this.resume.bind(this),this.setFocus=this.setFocus.bind(this),this.updateAllLayouts=this.updateAllLayouts.bind(this),this.navigateByDirection=this.navigateByDirection.bind(this),this.init=this.init.bind(this),this.setThrottle=this.setThrottle.bind(this),this.destroy=this.destroy.bind(this),this.setKeyMap=this.setKeyMap.bind(this),this.getCurrentFocusKey=this.getCurrentFocusKey.bind(this),this.doesFocusableExist=this.doesFocusableExist.bind(this),this.setFocusDebounced=(0,_.default)(this.setFocus,300,{leading:!1,trailing:!0}),this.debug=!1,this.visualDebugger=null,this.logIndex=0}return l.getCutoffCoordinate=function(n,s,a,f,y){var b=n?f.top:y===ee.default.LTR?f.left:f.right,w=n?f.bottom:y===ee.default.LTR?f.right:f.left;return s?a?b:w:a?w:b},l.getRefCorners=function(n,s,a){var f={a:{x:0,y:0},b:{x:0,y:0}};switch(n){case ue:var y=s?a.bottom:a.top;f.a={x:a.left,y},f.b={x:a.right,y};break;case te:y=s?a.top:a.bottom,f.a={x:a.left,y},f.b={x:a.right,y};break;case se:var b=s?a.right:a.left;f.a={x:b,y:a.top},f.b={x:b,y:a.bottom};break;case ae:b=s?a.left:a.right,f.a={x:b,y:a.top},f.b={x:b,y:a.bottom}}return f},l.isAdjacentSlice=function(n,s,a){var f=n.a,y=n.b,b=s.a,w=s.b,A=a?"x":"y",M=f[A],N=y[A],S=b[A],E=w[A],T=.2*(N-M);return Math.max(0,Math.min(N,E)-Math.max(M,S))>=T},l.getPrimaryAxisDistance=function(n,s,a){var f=n.a,y=s.a,b=a?"y":"x";return Math.abs(y[b]-f[b])},l.getSecondaryAxisDistance=function(n,s,a){var f=n.a,y=n.b,b=s.a,w=s.b,A=a?"x":"y",M=f[A],N=y[A],S=b[A],E=w[A],T=[];return T.push(Math.abs(S-M)),T.push(Math.abs(S-N)),T.push(Math.abs(E-M)),T.push(Math.abs(E-N)),Math.min.apply(Math,T)},l.prototype.sortSiblingsByPriority=function(n,s,a,f){var y=this,b=a===te||a===ue,w=l.getRefCorners(a,!1,s);return(0,Te.default)(n,function(A){var M=l.getRefCorners(a,!0,A.layout),N=l.isAdjacentSlice(w,M,b),S=N?l.getPrimaryAxisDistance:l.getSecondaryAxisDistance,E=N?l.getSecondaryAxisDistance:l.getPrimaryAxisDistance,T=S(w,M,b),Q=E(w,M,b),U=5*T+Q,X=(U+1)/(N?5:1);return y.log("smartNavigate","distance (primary, secondary, total weighted) for ".concat(A.focusKey," relative to ").concat(f," is"),T,Q,U),y.log("smartNavigate","priority for ".concat(A.focusKey," relative to ").concat(f," is"),X),y.visualDebugger&&(y.visualDebugger.drawPoint(M.a.x,M.a.y,"yellow",6),y.visualDebugger.drawPoint(M.b.x,M.b.y,"yellow",6)),X})},l.prototype.init=function(n){var s=n===void 0?{}:n,a=s.debug,f=a!==void 0&&a,y=s.visualDebug,b=y!==void 0&&y,w=s.nativeMode,A=w!==void 0&&w,M=s.throttle,N=M===void 0?0:M,S=s.throttleKeypresses,E=S!==void 0&&S,T=s.useGetBoundingClientRect,Q=T!==void 0&&T,U=s.shouldFocusDOMNode,X=U!==void 0&&U,re=s.shouldUseNativeEvents,H=re!==void 0&&re,G=s.rtl,ne=G!==void 0&&G;this.enabled||(this.enabled=!0,this.nativeMode=A,this.throttleKeypresses=E,this.useGetBoundingClientRect=Q,this.shouldFocusDOMNode=X&&!A,this.shouldUseNativeEvents=H,this.writingDirection=ne?ee.default.RTL:ee.default.LTR,this.debug=f,this.nativeMode||(Number.isInteger(N)&&N>0&&(this.throttle=N),this.bindEventHandlers(),b&&(this.visualDebugger=new je.default(this.writingDirection),this.startDrawLayouts())))},l.prototype.setThrottle=function(n){var s=n===void 0?{}:n,a=s.throttle,f=a===void 0?0:a,y=s.throttleKeypresses,b=y!==void 0&&y;this.throttleKeypresses=b,this.nativeMode||(this.unbindEventHandlers(),Number.isInteger(f)&&(this.throttle=f),this.bindEventHandlers())},l.prototype.startDrawLayouts=function(){var n=this,s=function(){requestAnimationFrame(function(){n.visualDebugger.clearLayouts(),(0,we.default)(n.focusableComponents,function(a,f){n.visualDebugger.drawLayout(a.layout,f,a.parentFocusKey)}),s()})};s()},l.prototype.destroy=function(){this.enabled&&(this.enabled=!1,this.nativeMode=!1,this.throttle=0,this.throttleKeypresses=!1,this.focusKey=null,this.parentsHavingFocusedChild=[],this.focusableComponents={},this.paused=!1,this.keyMap=Oe,this.unbindEventHandlers())},l.prototype.getEventType=function(n){return(0,I.default)(this.getKeyMap(),function(s){return s.includes(n)})},l.getKeyCode=function(n){return n.keyCode||n.code},l.prototype.bindEventHandlers=function(){var n=this;typeof window<"u"&&window.addEventListener&&(this.keyDownEventListener=function(s){if(n.paused!==!0){n.debug&&(n.logIndex+=1);var a=l.getKeyCode(s),f=n.getEventType(a);if(f){n.pressedKeys[f]=n.pressedKeys[f]?n.pressedKeys[f]+1:1,n.shouldUseNativeEvents||(s.preventDefault(),s.stopPropagation());var y={pressedKeys:n.pressedKeys};f===Ae&&n.focusKey?n.onEnterPress(y):n.onArrowPress(f,y)===!1?(n.log("keyDownEventListener","default navigation prevented"),n.visualDebugger&&n.visualDebugger.clear()):n.onKeyEvent(s)}}},this.throttle&&(this.keyDownEventListenerThrottled=(0,ut.default)(this.keyDownEventListener.bind(this),this.throttle,Ue)),this.keyUpEventListener=function(s){var a=l.getKeyCode(s),f=n.getEventType(a);delete n.pressedKeys[f],n.throttle&&!n.throttleKeypresses&&n.keyDownEventListenerThrottled.cancel(),f===Ae&&n.focusKey&&n.onEnterRelease()},window.addEventListener("keyup",this.keyUpEventListener),window.addEventListener("keydown",this.throttle?this.keyDownEventListenerThrottled:this.keyDownEventListener))},l.prototype.unbindEventHandlers=function(){if(typeof window<"u"&&window.removeEventListener){window.removeEventListener("keyup",this.keyUpEventListener),this.keyUpEventListener=null;var n=this.throttle?this.keyDownEventListenerThrottled:this.keyDownEventListener;window.removeEventListener("keydown",n),this.keyDownEventListener=null}},l.prototype.onEnterPress=function(n){var s=this.focusableComponents[this.focusKey];s?s.focusable?s.onEnterPress&&s.onEnterPress(n):this.log("onEnterPress","componentNotFocusable"):this.log("onEnterPress","noComponent")},l.prototype.onEnterRelease=function(){var n=this.focusableComponents[this.focusKey];n?n.focusable?n.onEnterRelease&&n.onEnterRelease():this.log("onEnterRelease","componentNotFocusable"):this.log("onEnterRelease","noComponent")},l.prototype.onArrowPress=function(n,s){var a=this.focusableComponents[this.focusKey];if(a)return a&&a.onArrowPress&&a.onArrowPress(n,s);this.log("onArrowPress","noComponent")},l.prototype.navigateByDirection=function(n,s){if(this.paused!==!0&&this.enabled&&!this.nativeMode){var a=[te,ue,se,ae];a.includes(n)?(this.log("navigateByDirection","direction",n),this.smartNavigate(n,null,s)):this.log("navigateByDirection","Invalid direction. You passed: `".concat(n,"`, but you can use only these: "),a)}},l.prototype.onKeyEvent=function(n){this.visualDebugger&&this.visualDebugger.clear();var s=l.getKeyCode(n),a=(0,I.default)(this.getKeyMap(),function(f){return f.includes(s)});this.smartNavigate(a,null,{event:n})},l.prototype.smartNavigate=function(n,s,a){var f=this;if(!this.nativeMode){var y=n===te||n===ue,b=n===te||(this.writingDirection===ee.default.LTR?n===ae:n===se);this.log("smartNavigate","direction",n),this.log("smartNavigate","fromParentFocusKey",s),this.log("smartNavigate","this.focusKey",this.focusKey),s||(0,we.default)(this.focusableComponents,function(H){H.layoutUpdated=!1});var w=this.focusableComponents[s||this.focusKey];if(s||w){if(this.log("smartNavigate","currentComponent",w?w.focusKey:void 0,w?w.node:void 0,w),w){this.updateLayout(w.focusKey);var A=w.parentFocusKey,M=w.focusKey,N=w.layout,S=l.getCutoffCoordinate(y,b,!1,N,this.writingDirection),E=(0,z.default)(this.focusableComponents,function(H){if(H.parentFocusKey===A&&H.focusable){f.updateLayout(H.focusKey);var G=l.getCutoffCoordinate(y,b,!0,H.layout,f.writingDirection);return y||f.writingDirection===ee.default.LTR?b?G>=S:G<=S:b?G<=S:G>=S}return!1});if(this.debug&&(this.log("smartNavigate","currentCutoffCoordinate",S),this.log("smartNavigate","siblings","".concat(E.length," elements:"),E.map(function(H){return H.focusKey}).join(", "),E.map(function(H){return H.node}),E.map(function(H){return H}))),this.visualDebugger){var T=l.getRefCorners(n,!1,N);this.visualDebugger.drawPoint(T.a.x,T.a.y),this.visualDebugger.drawPoint(T.b.x,T.b.y)}var Q=this.sortSiblingsByPriority(E,N,n,M),U=(0,Y.default)(Q);if(this.log("smartNavigate","nextComponent",U?U.focusKey:void 0,U?U.node:void 0,U),U)this.setFocus(U.focusKey,a);else{var X=this.focusableComponents[A],re=X?.isFocusBoundary?X.focusBoundaryDirections||[n]:[];X&&re.includes(n)||this.smartNavigate(n,A,a)}}}else this.setFocus(this.getForcedFocusKey())}},l.prototype.saveLastFocusedChildKey=function(n,s){n&&(this.log("saveLastFocusedChildKey","".concat(n.focusKey," lastFocusedChildKey set"),s),n.lastFocusedChildKey=s)},l.prototype.log=function(n,s){for(var a=[],f=2;f<arguments.length;f++)a[f-2]=arguments[f];this.debug&&console.log.apply(console,K(["%c".concat(n,"%c").concat(s),"background: ".concat(Ee[this.logIndex%Ee.length],"; color: black; padding: 1px 5px;"),"background: #333; color: #BADA55; padding: 1px 5px;"],a,!1))},l.prototype.getCurrentFocusKey=function(){return this.focusKey},l.prototype.getForcedFocusKey=function(){var n,s=(0,z.default)(this.focusableComponents,function(f){return f.focusable&&f.forceFocus}),a=this.sortSiblingsByPriority(s,{x:0,y:0,width:0,height:0,left:0,top:0,right:0,bottom:0,node:null},"down",d.ROOT_FOCUS_KEY);return(n=(0,Y.default)(a))===null||n===void 0?void 0:n.focusKey},l.prototype.getNextFocusKey=function(n){var s=this,a=this.focusableComponents[n];if(!a||this.nativeMode)return n;var f=(0,z.default)(this.focusableComponents,function(A){return A.parentFocusKey===n&&A.focusable});if(f.length>0){var y=a.lastFocusedChildKey,b=a.preferredChildFocusKey;if(this.log("getNextFocusKey","lastFocusedChildKey is",y),this.log("getNextFocusKey","preferredChildFocusKey is",b),y&&a.saveLastFocusedChild&&this.isParticipatingFocusableComponent(y))return this.log("getNextFocusKey","lastFocusedChildKey will be focused",y),this.getNextFocusKey(y);if(b&&this.isParticipatingFocusableComponent(b))return this.log("getNextFocusKey","preferredChildFocusKey will be focused",b),this.getNextFocusKey(b);f.forEach(function(A){return s.updateLayout(A.focusKey)});var w=function(A,M){var N=M===ee.default.LTR?function(E){var T=E.layout;return Math.abs(T.left)+Math.abs(T.top)}:function(E){var T=E.layout;return Math.abs(window.innerWidth-T.right)+Math.abs(T.top)},S=(0,Te.default)(A,N);return(0,Y.default)(S)}(f,this.writingDirection).focusKey;return this.log("getNextFocusKey","childKey will be focused",w),this.getNextFocusKey(w)}return this.log("getNextFocusKey","targetFocusKey",n),n},l.prototype.addFocusable=function(n){var s=n.focusKey,a=n.node,f=n.parentFocusKey,y=n.onEnterPress,b=n.onEnterRelease,w=n.onArrowPress,A=n.onFocus,M=n.onBlur,N=n.saveLastFocusedChild,S=n.trackChildren,E=n.onUpdateFocus,T=n.onUpdateHasFocusedChild,Q=n.preferredChildFocusKey,U=n.autoRestoreFocus,X=n.forceFocus,re=n.focusable,H=n.isFocusBoundary,G=n.focusBoundaryDirections;if(this.focusableComponents[s]={focusKey:s,node:a,parentFocusKey:f,onEnterPress:y,onEnterRelease:b,onArrowPress:w,onFocus:A,onBlur:M,onUpdateFocus:E,onUpdateHasFocusedChild:T,saveLastFocusedChild:N,trackChildren:S,preferredChildFocusKey:Q,focusable:re,isFocusBoundary:H,focusBoundaryDirections:G,autoRestoreFocus:U,forceFocus:X,lastFocusedChildKey:null,layout:{x:0,y:0,width:0,height:0,left:0,top:0,right:0,bottom:0,node:a},layoutUpdated:!1},a||console.warn('Component added without a node reference. This will result in its coordinates being empty and may cause lost focus. Check the "ref" passed to "useFocusable": ',this.focusableComponents[s]),!this.nativeMode){this.updateLayout(s),this.log("addFocusable","Component added: ",this.focusableComponents[s]),s===this.focusKey&&this.setFocus(Q||s);for(var ne=this.focusableComponents[this.focusKey];ne;){if(ne.parentFocusKey===s){this.updateParentsHasFocusedChild(this.focusKey,{}),this.updateParentsLastFocusedChild(this.focusKey);break}ne=this.focusableComponents[ne.parentFocusKey]}}},l.prototype.removeFocusable=function(n){var s=n.focusKey,a=this.focusableComponents[s];if(a){var f=a.parentFocusKey;(0,a.onUpdateFocus)(!1),this.log("removeFocusable","Component removed: ",a),delete this.focusableComponents[s];var y=this.parentsHavingFocusedChild.includes(s);this.parentsHavingFocusedChild=this.parentsHavingFocusedChild.filter(function(A){return A!==s});var b=this.focusableComponents[f],w=s===this.focusKey;if(b&&b.lastFocusedChildKey===s&&(b.lastFocusedChildKey=null),this.nativeMode)return;(w||y)&&b&&b.autoRestoreFocus&&(this.log("removeFocusable","Component removed: ",w?"Leaf component":"Container component","Auto restoring focus to: ",f),this.setFocusDebounced(f))}},l.prototype.getNodeLayoutByFocusKey=function(n){var s=this.focusableComponents[n];return s?(this.updateLayout(s.focusKey),s.layout):null},l.prototype.setCurrentFocusedKey=function(n,s){if(this.isFocusableComponent(this.focusKey)&&n!==this.focusKey){var a=this.focusableComponents[this.focusKey];a.onUpdateFocus(!1),a.onBlur(this.getNodeLayoutByFocusKey(this.focusKey),s),this.log("setCurrentFocusedKey","onBlur",a)}if(this.focusKey=n,this.isFocusableComponent(this.focusKey)){var f=this.focusableComponents[this.focusKey];this.shouldFocusDOMNode&&f.node&&f.node.focus(),f.onUpdateFocus(!0),f.onFocus(this.getNodeLayoutByFocusKey(this.focusKey),s),this.log("setCurrentFocusedKey","onFocus",f)}},l.prototype.updateParentsHasFocusedChild=function(n,s){for(var a=this,f=[],y=this.focusableComponents[n];y;){var b=y.parentFocusKey,w=this.focusableComponents[b];if(w){var A=w.focusKey;f.push(A)}y=w}var M=(0,$.default)(this.parentsHavingFocusedChild,f),N=(0,$.default)(f,this.parentsHavingFocusedChild);(0,_e.default)(M,function(S){var E=a.focusableComponents[S];E&&E.trackChildren&&E.onUpdateHasFocusedChild(!1),a.onIntermediateNodeBecameBlurred(S,s)}),(0,_e.default)(N,function(S){var E=a.focusableComponents[S];E&&E.trackChildren&&E.onUpdateHasFocusedChild(!0),a.onIntermediateNodeBecameFocused(S,s)}),this.parentsHavingFocusedChild=f},l.prototype.updateParentsLastFocusedChild=function(n){for(var s=this.focusableComponents[n];s;){var a=s.parentFocusKey,f=this.focusableComponents[a];f&&this.saveLastFocusedChildKey(f,s.focusKey),s=f}},l.prototype.getKeyMap=function(){return this.keyMap},l.prototype.setKeyMap=function(n){this.keyMap=g(g({},this.getKeyMap()),function(s){var a={};return Object.entries(s).forEach(function(f){var y=f[0],b=f[1];a[y]=Array.isArray(b)?b:[b]}),a}(n))},l.prototype.isFocusableComponent=function(n){return!!this.focusableComponents[n]},l.prototype.isParticipatingFocusableComponent=function(n){return this.isFocusableComponent(n)&&this.focusableComponents[n].focusable},l.prototype.onIntermediateNodeBecameFocused=function(n,s){this.isParticipatingFocusableComponent(n)&&this.focusableComponents[n].onFocus(this.getNodeLayoutByFocusKey(n),s)},l.prototype.onIntermediateNodeBecameBlurred=function(n,s){this.isParticipatingFocusableComponent(n)&&this.focusableComponents[n].onBlur(this.getNodeLayoutByFocusKey(n),s)},l.prototype.pause=function(){this.paused=!0},l.prototype.resume=function(){this.paused=!1},l.prototype.setFocus=function(n,s){if(s===void 0&&(s={}),this.setFocusDebounced.cancel(),this.enabled&&!this.nativeMode){this.log("setFocus","focusKey",n),n&&n!==d.ROOT_FOCUS_KEY||(n=this.getForcedFocusKey());var a=this.getNextFocusKey(n);this.log("setFocus","newFocusKey",a),this.setCurrentFocusedKey(a,s),this.updateParentsHasFocusedChild(a,s),this.updateParentsLastFocusedChild(a)}},l.prototype.updateAllLayouts=function(){var n=this;this.enabled&&!this.nativeMode&&(0,we.default)(this.focusableComponents,function(s,a){n.updateLayout(a)})},l.prototype.updateLayout=function(n){var s=this.focusableComponents[n];if(s&&!this.nativeMode&&!s.layoutUpdated){var a=s.node,f=this.useGetBoundingClientRect?(0,Ke.getBoundingClientRect)(a):(0,Ke.default)(a);s.layout=g(g({},f),{node:a})}},l.prototype.updateFocusable=function(n,s){var a=s.node,f=s.preferredChildFocusKey,y=s.focusable,b=s.isFocusBoundary,w=s.focusBoundaryDirections,A=s.onEnterPress,M=s.onEnterRelease,N=s.onArrowPress,S=s.onFocus,E=s.onBlur;if(!this.nativeMode){var T=this.focusableComponents[n];T&&(T.preferredChildFocusKey=f,T.focusable=y,T.isFocusBoundary=b,T.focusBoundaryDirections=w,T.onEnterPress=A,T.onEnterRelease=M,T.onArrowPress=N,T.onFocus=S,T.onBlur=E,a&&(T.node=a))}},l.prototype.isNativeMode=function(){return this.nativeMode},l.prototype.doesFocusableExist=function(n){return!!this.focusableComponents[n]},l}();d.SpatialNavigation=new He,d.init=d.SpatialNavigation.init,d.setThrottle=d.SpatialNavigation.setThrottle,d.destroy=d.SpatialNavigation.destroy,d.setKeyMap=d.SpatialNavigation.setKeyMap,d.setFocus=d.SpatialNavigation.setFocus,d.navigateByDirection=d.SpatialNavigation.navigateByDirection,d.pause=d.SpatialNavigation.pause,d.resume=d.SpatialNavigation.resume,d.updateAllLayouts=d.SpatialNavigation.updateAllLayouts,d.getCurrentFocusKey=d.SpatialNavigation.getCurrentFocusKey,d.doesFocusableExist=d.SpatialNavigation.doesFocusableExist},35:function(m,d,C){var v=this&&this.__importDefault||function(x){return x&&x.__esModule?x:{default:x}};Object.defineProperty(d,"__esModule",{value:!0});var g=v(C(119)),P=typeof window<"u"&&window.document,L=P?window.innerWidth:0,O=P?window.innerHeight:0,K=function(){function x(_){P&&(this.debugCtx=x.createCanvas("sn-debug","1010",_),this.layoutsCtx=x.createCanvas("sn-layouts","1000",_),this.writingDirection=_)}return x.createCanvas=function(_,$,z){var I=document.querySelector("#".concat(_))||document.createElement("canvas");I.setAttribute("id",_),I.setAttribute("dir",z===g.default.LTR?"ltr":"rtl");var Y=I.getContext("2d");return I.style.zIndex=$,I.style.position="fixed",I.style.top="0",I.style.left="0",document.body.appendChild(I),I.width=L,I.height=O,Y},x.prototype.clear=function(){P&&this.debugCtx.clearRect(0,0,L,O)},x.prototype.clearLayouts=function(){P&&this.layoutsCtx.clearRect(0,0,L,O)},x.prototype.drawLayout=function(_,$,z){if(P){this.layoutsCtx.strokeStyle="green",this.layoutsCtx.strokeRect(_.left,_.top,_.width,_.height),this.layoutsCtx.font="8px monospace",this.layoutsCtx.fillStyle="red";var I=this.writingDirection===g.default.LTR?"left":"right",Y=_[I];this.layoutsCtx.fillText($,Y,_.top+10),this.layoutsCtx.fillText(z,Y,_.top+25),this.layoutsCtx.fillText("".concat(I,": ").concat(Y),Y,_.top+40),this.layoutsCtx.fillText("top: ".concat(_.top),Y,_.top+55)}},x.prototype.drawPoint=function(_,$,z,I){z===void 0&&(z="blue"),I===void 0&&(I=10),P&&(this.debugCtx.strokeStyle=z,this.debugCtx.lineWidth=3,this.debugCtx.strokeRect(_-I/2,$-I/2,I,I))},x}();d.default=K},119:function(m,d){var C;Object.defineProperty(d,"__esModule",{value:!0}),function(v){v[v.LTR=0]="LTR",v[v.RTL=1]="RTL"}(C||(C={})),d.default=C},607:function(m,d,C){var v=this&&this.__createBinding||(Object.create?function(P,L,O,K){K===void 0&&(K=O);var x=Object.getOwnPropertyDescriptor(L,O);x&&!("get"in x?!L.__esModule:x.writable||x.configurable)||(x={enumerable:!0,get:function(){return L[O]}}),Object.defineProperty(P,K,x)}:function(P,L,O,K){K===void 0&&(K=O),P[K]=L[O]}),g=this&&this.__exportStar||function(P,L){for(var O in P)O==="default"||Object.prototype.hasOwnProperty.call(L,O)||v(L,P,O)};Object.defineProperty(d,"__esModule",{value:!0}),g(C(79),d),g(C(445),d),g(C(654),d)},964:function(m,d){Object.defineProperty(d,"__esModule",{value:!0}),d.getBoundingClientRect=void 0;var C=function(v){for(var g=v.offsetParent,P=v.offsetHeight,L=v.offsetWidth,O=v.offsetLeft,K=v.offsetTop;g&&g.nodeType===1;)O+=g.offsetLeft-g.scrollLeft,K+=g.offsetTop-g.scrollTop,g=g.offsetParent;return{height:P,left:O,top:K,width:L}};d.default=function(v){var g=v&&v.parentElement;if(v&&g){var P=C(g),L=C(v),O=L.height,K=L.left,x=L.top,_=L.width;return{x:K-P.left,y:x-P.top,width:_,height:O,left:K,top:x,get right(){return this.left+this.width},get bottom(){return this.top+this.height}}}return{x:0,y:0,width:0,height:0,left:0,top:0,right:0,bottom:0}},d.getBoundingClientRect=function(v){if(v&&v.getBoundingClientRect){var g=v.getBoundingClientRect();return{x:g.x,y:g.y,width:g.width,height:g.height,left:g.left,top:g.top,get right(){return this.left+this.width},get bottom(){return this.top+this.height}}}return{x:0,y:0,width:0,height:0,left:0,top:0,right:0,bottom:0}}},445:function(m,d,C){Object.defineProperty(d,"__esModule",{value:!0}),d.useFocusContext=d.FocusContext=void 0;var v=C(156),g=C(654);d.FocusContext=(0,v.createContext)(g.ROOT_FOCUS_KEY),d.FocusContext.displayName="FocusContext",d.useFocusContext=function(){return(0,v.useContext)(d.FocusContext)}},79:function(m,d,C){var v=this&&this.__importDefault||function(x){return x&&x.__esModule?x:{default:x}};Object.defineProperty(d,"__esModule",{value:!0}),d.useFocusable=void 0;var g=C(156),P=v(C(604)),L=v(C(461)),O=C(654),K=C(445);d.useFocusable=function(x){var _=x===void 0?{}:x,$=_.focusable,z=$===void 0||$,I=_.saveLastFocusedChild,Y=I===void 0||I,_e=_.trackChildren,we=_e!==void 0&&_e,Te=_.autoRestoreFocus,ut=Te===void 0||Te,je=_.forceFocus,ee=je!==void 0&&je,Ke=_.isFocusBoundary,se=Ke!==void 0&&Ke,ae=_.focusBoundaryDirections,ue=_.focusKey,te=_.preferredChildFocusKey,Ae=_.onEnterPress,Oe=Ae===void 0?P.default:Ae,Ee=_.onEnterRelease,Ue=Ee===void 0?P.default:Ee,He=_.onArrowPress,l=He===void 0?function(){return!0}:He,n=_.onFocus,s=n===void 0?P.default:n,a=_.onBlur,f=a===void 0?P.default:a,y=_.extraProps,b=(0,g.useCallback)(function(W){Oe(y,W)},[Oe,y]),w=(0,g.useCallback)(function(){Ue(y)},[Ue,y]),A=(0,g.useCallback)(function(W,Z){return l(W,y,Z)},[y,l]),M=(0,g.useCallback)(function(W,Z){s(W,y,Z)},[y,s]),N=(0,g.useCallback)(function(W,Z){f(W,y,Z)},[y,f]),S=(0,g.useRef)(null),E=(0,g.useState)(!1),T=E[0],Q=E[1],U=(0,g.useState)(!1),X=U[0],re=U[1],H=(0,K.useFocusContext)(),G=(0,g.useMemo)(function(){return ue||(0,L.default)("sn:focusable-item-")},[ue]),ne=(0,g.useCallback)(function(W){W===void 0&&(W={}),O.SpatialNavigation.setFocus(G,W)},[G]);return(0,g.useEffect)(function(){var W=S.current;return O.SpatialNavigation.addFocusable({focusKey:G,node:W,parentFocusKey:H,preferredChildFocusKey:te,onEnterPress:b,onEnterRelease:w,onArrowPress:A,onFocus:M,onBlur:N,onUpdateFocus:function(Z){return Z===void 0&&(Z=!1),Q(Z)},onUpdateHasFocusedChild:function(Z){return Z===void 0&&(Z=!1),re(Z)},saveLastFocusedChild:Y,trackChildren:we,isFocusBoundary:se,focusBoundaryDirections:ae,autoRestoreFocus:ut,forceFocus:ee,focusable:z}),function(){O.SpatialNavigation.removeFocusable({focusKey:G})}},[]),(0,g.useEffect)(function(){var W=S.current;O.SpatialNavigation.updateFocusable(G,{node:W,preferredChildFocusKey:te,focusable:z,isFocusBoundary:se,focusBoundaryDirections:ae,onEnterPress:b,onEnterRelease:w,onArrowPress:A,onFocus:M,onBlur:N})},[G,te,z,se,ae,b,w,A,M,N]),{ref:S,focusSelf:ne,focused:T,hasFocusedChild:X,focusKey:G}}},150:function(m){m.exports=e},117:function(m){m.exports=t},747:function(m){m.exports=r},23:function(m){m.exports=i},842:function(m){m.exports=u},682:function(m){m.exports=c},784:function(m){m.exports=p},604:function(m){m.exports=h},432:function(m){m.exports=q},67:function(m){m.exports=F},461:function(m){m.exports=B},156:function(m){m.exports=R}},k={};return function m(d){var C=k[d];if(C!==void 0)return C.exports;var v=k[d]={exports:{}};return D[d].call(v.exports,v,v.exports,m),v.exports}(607)}()})});var at={};ft(at,eu(Ya()));return tu(at);})();
+
+</script>
+<script>
+(function () {
+  /* ---------- Escala do canvas 1920×1080 ---------- */
+  const stage = document.getElementById('stage');
+  const fit = () => stage.style.setProperty('--s', Math.min(innerWidth / 1920, innerHeight / 1080));
+  fit(); addEventListener('resize', fit);
+
+  const { useState, useEffect, useRef } = React;
+  const html = htm.bind(React.createElement);
+  const { init, useFocusable, FocusContext, setFocus, getCurrentFocusKey, doesFocusableExist } = SpatialNav;
+  init({ throttle: 90, throttleKeypresses: true });
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const BEHAVIOR = REDUCE ? 'auto' : 'smooth';
+
+  /* ---------- Conteúdo ---------- */
+  /* A notícia vem de stories.js (a mesma base da tela inicial), escolhida por ?id=N */
+  const STORIES = window.ROT_STORIES || [], IMGS = window.ROT_IMG || {};
+  const POST_ID = Number(new URLSearchParams(location.search).get('id')) || (STORIES[0] && STORIES[0].id) || 0;
+  const STORY = STORIES.find(s => s.id === POST_ID) || STORIES[0] || { id: 0, title: 'Notícia não encontrada', body: ['Esta notícia não está mais disponível.'] };
+  const HERO_IMG = IMGS[STORY.id] || '';
+  const TITLE = STORY.title;
+  const BLOCKS = STORY.body.map(p => ['p', p]);
+  document.title = TITLE + ' · Read on TV';
+  /* Aberto dentro da tela inicial (iframe): Sair e tela cheia são tratados pela página-mãe */
+  const PARENT = (() => { try { return window.parent !== window && window.parent.document ? window.parent : null; } catch (e) { return null; } })();
+  const FS_DOC = PARENT ? PARENT.document : document;
+
+  // Frases (para leitura em voz alta e destaque) e palavras restantes a partir de cada frase
+  const SENTENCES = [];
+  const DOC = BLOCKS.map(([type, text]) => ({
+    type, ids: (type === 'h' ? [text] : text.replace(/([.!?])\s+/g, '$1\u0001').split('\u0001')).map(t => SENTENCES.push(t) - 1)
+  }));
+  const WPM = 180;
+  const WORDS_FROM = new Array(SENTENCES.length + 1).fill(0);
+  for (let i = SENTENCES.length - 1; i >= 0; i--) WORDS_FROM[i] = WORDS_FROM[i + 1] + SENTENCES[i].split(/\s+/).length;
+
+  const SIZES = [{ label: 'Médio', px: 46 }, { label: 'Grande', px: 50 }, { label: 'Extra', px: 54 }];
+  const RATES = [0.9, 1, 1.15, 1.3];
+  const STORE = 'readontv:post-' + STORY.id;
+  const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { return {}; } };
+  const save = (v) => { try { localStorage.setItem(STORE, JSON.stringify({ ...load(), ...v })); } catch (e) {} };
+
+  /* ---------- Leitura em voz alta (Web Speech API) ---------- */
+  function useSpeech(onEnd) {
+    const supported = 'speechSynthesis' in window;
+    const [status, setStatus] = useState('idle');   // idle | playing | paused
+    const [idx, setIdx] = useState(-1);
+    const [rate, setRateState] = useState(load().rate || 1);
+    const token = useRef(0), voice = useRef(null), rateRef = useRef(rate), idxRef = useRef(-1), endRef = useRef(onEnd);
+    endRef.current = onEnd;
+
+    useEffect(() => {
+      if (!supported) return;
+      const pick = () => {
+        const vs = speechSynthesis.getVoices();
+        voice.current = vs.find(v => v.lang === 'pt-BR' && /google/i.test(v.name))
+          || vs.find(v => v.lang === 'pt-BR') || vs.find(v => (v.lang || '').toLowerCase().startsWith('pt')) || null;
+      };
+      pick();
+      speechSynthesis.addEventListener('voiceschanged', pick);
+      return () => { speechSynthesis.removeEventListener('voiceschanged', pick); speechSynthesis.cancel(); };
+    }, []);
+
+    // Interrompe a fala; 'idle' também esquece a frase atual
+    const halt = (next) => {
+      token.current++;
+      if (supported) speechSynthesis.cancel();
+      setStatus(next);
+      if (next === 'idle') { idxRef.current = -1; setIdx(-1); }
+    };
+
+    const speakFrom = (i) => {
+      if (!supported) return;
+      if (i < 0 || i >= SENTENCES.length) return halt('idle');
+      const t = ++token.current;
+      speechSynthesis.cancel();
+      idxRef.current = i; setIdx(i); setStatus('playing'); save({ sentence: i });
+      setTimeout(() => {           // Chrome ignora speak() logo após cancel(); um pequeno atraso evita isso
+        if (t !== token.current) return;
+        const u = new SpeechSynthesisUtterance(SENTENCES[i]);
+        u.lang = 'pt-BR'; u.rate = rateRef.current;
+        if (voice.current) u.voice = voice.current;
+        u.onend = () => {
+          if (t !== token.current) return;
+          if (i + 1 < SENTENCES.length) speakFrom(i + 1);
+          else { halt('idle'); endRef.current('done'); }
+        };
+        u.onerror = (e) => {
+          if (t !== token.current || e.error === 'interrupted' || e.error === 'canceled') return;
+          halt('idle'); endRef.current('error');
+        };
+        speechSynthesis.speak(u);
+      }, 60);
+    };
+
+    const setRate = (r) => { rateRef.current = r; setRateState(r); save({ rate: r }); };
+    return { supported, status, idx, idxRef, rate, setRate, speakFrom, pause: () => halt('paused'), stop: () => halt('idle') };
+  }
+
+  /* ---------- Componentes focáveis ---------- */
+  function TvButton({ focusKey, icon, label, sub, onPress, onArrow, variant = '', ariaLabel }) {
+    const { ref, focused } = useFocusable({ focusKey, onEnterPress: () => onPress && onPress(), onArrowPress: onArrow });
+    return html`<button ref=${ref} type="button" tabIndex="-1"
+      class=${'tvbtn ' + variant + (focused ? ' focused' : '')}
+      aria-label=${ariaLabel || label}
+      onMouseDown=${e => e.preventDefault()}
+      onMouseEnter=${() => setFocus(focusKey)}
+      onClick=${() => onPress && onPress()}>
+      <span class="ms" aria-hidden="true">${icon}</span>
+      ${label && html`<span>${label}${sub && html` <span class="sub">${sub}</span>`}</span>`}
+    </button>`;
+  }
+
+  function Row({ focusKey, className, children }) {
+    const { ref, focusKey: fk } = useFocusable({ focusKey, saveLastFocusedChild: true });
+    return html`<${FocusContext.Provider} value=${fk}><div ref=${ref} class=${className}>${children}</div><//>`;
+  }
+
+  // Área de leitura. Expõe firstVisible / step / toTop pelo objeto `api`.
+  function Reader({ sizePx, idx, api, onProgress, userScrollAt }) {
+    const el = useRef(null), target = useRef(null), pct = useRef(load().scroll || 0);
+    const [edges, setEdges] = useState({ top: true, end: false });
+    const maxScroll = () => el.current.scrollHeight - el.current.clientHeight;
+
+    const firstVisible = () => {
+      for (const s of el.current.querySelectorAll('[data-s]'))
+        if (s.offsetTop + s.offsetHeight > el.current.scrollTop + 10) return +s.dataset.s;
+      return 0;
+    };
+    const measure = () => {
+      const top = el.current.scrollTop, max = maxScroll();
+      setEdges({ top: top < 4, end: top >= max - 4 });
+      onProgress(max <= 0 ? 1 : top / max, firstVisible(), top);
+    };
+    const userScrollTo = (top) => {
+      target.current = top;
+      el.current.scrollTo({ top, behavior: BEHAVIOR });
+      userScrollAt.current = Date.now();
+    };
+
+    api.current = {
+      firstVisible,
+      toTop: () => userScrollTo(0),
+      step(dir) {   // rola ~meia tela; false se já está no limite
+        const e = el.current, max = maxScroll();
+        const from = target.current != null && Math.abs(target.current - e.scrollTop) > 2 ? target.current : e.scrollTop;
+        if (dir > 0 ? from >= max - 4 : from <= 4) return false;
+        userScrollTo(clamp(from + dir * e.clientHeight * 0.55, 0, max));
+        return true;
+      }
+    };
+
+    // Restaura a posição salva e mantém a proporção ao mudar o tamanho do texto
+    useEffect(() => { el.current.scrollTop = pct.current * maxScroll(); measure(); }, [sizePx]);
+
+    const onScroll = () => {
+      const max = maxScroll();
+      pct.current = max > 0 ? el.current.scrollTop / max : 0;
+      save({ scroll: pct.current });
+      measure();
+    };
+
+    // Acompanha a frase falada (exceto logo após o usuário rolar)
+    useEffect(() => {
+      const e = el.current, span = idx >= 0 && e.querySelector(`[data-s="${idx}"]`);
+      if (!span || Date.now() - userScrollAt.current < 5000) return;
+      const top = span.offsetTop, bottom = top + span.offsetHeight;
+      if (top < e.scrollTop + e.clientHeight * 0.12 || bottom > e.scrollTop + e.clientHeight * 0.7)
+        e.scrollTo({ top: Math.max(0, top - e.clientHeight * 0.25), behavior: BEHAVIOR });
+    }, [idx]);
+
+    return html`<div ref=${el} onScroll=${onScroll} onWheel=${() => { userScrollAt.current = Date.now(); }}
+        class=${'reader' + (edges.top ? '' : ' scrolled') + (edges.end ? ' at-end' : '')}
+        tabIndex="-1" role="article" aria-label="Texto do artigo">
+      <div class="prose" style=${{ '--read-size': sizePx + 'px' }}>
+        ${DOC.map((b, bi) => {
+          const kids = b.ids.map((id, k) => html`${k > 0 ? ' ' : ''}<span data-s=${id} class=${'s' + (idx === id ? ' cur' : '')}>${SENTENCES[id]}</span>`);
+          return b.type === 'h' ? html`<h2 key=${bi}>${kids}</h2>` : html`<p key=${bi}>${kids}</p>`;
+        })}
+      </div>
+    </div>`;
+  }
+
+  // Tempo restante, calculado pelas palavras que faltam a partir do ponto real de leitura
+  function ReadingStats({ pct, from }) {
+    const mins = Math.round(WORDS_FROM[clamp(from, 0, SENTENCES.length)] / WPM);
+    return html`<div class="stats" role="status">${
+      pct >= 0.99 ? 'Leitura concluída'
+      : mins < 1 ? html`Falta <strong>menos de 1 minuto</strong> de leitura`
+      : html`${mins === 1 ? 'Falta' : 'Faltam'} <strong>${mins} ${mins === 1 ? 'minuto' : 'minutos'}</strong> de leitura`
+    }</div>`;
+  }
+
+  function ExitDialog({ onStay, onExit }) {
+    const { ref, focusKey, focusSelf } = useFocusable({ focusKey: 'MODAL', isFocusBoundary: true, preferredChildFocusKey: 'MODAL_STAY' });
+    useEffect(() => { focusSelf(); }, [focusSelf]);
+    return html`<div class="scrim" role="dialog" aria-modal="true" aria-labelledby="exit-title">
+      <${FocusContext.Provider} value=${focusKey}>
+        <div ref=${ref} class="dialog">
+          <h3 id="exit-title">Sair da leitura?</h3>
+          <p>Sua posição neste texto fica salva. Quando voltar, a leitura continua do mesmo ponto.</p>
+          <div class="row">
+            <${TvButton} focusKey="MODAL_STAY" icon="menu_book" label="Continuar lendo" variant="primary" onPress=${onStay} />
+            <${TvButton} focusKey="MODAL_EXIT" icon="logout" label="Sair" onPress=${onExit} />
+          </div>
+        </div>
+      <//>
+    </div>`;
+  }
+
+  /* ---------- Tela ---------- */
+  function App() {
+    const [sizeIdx, setSizeIdx] = useState(Math.min(load().size || 0, SIZES.length - 1));
+    const [modal, setModal] = useState(false);
+    const [toast, setToast] = useState(null);
+    const [guides, setGuides] = useState(false);
+    const [prog, setProg] = useState({ pct: 0, first: 0 });
+    const [collapsed, setCollapsed] = useState(false);
+    const [isFs, setIsFs] = useState(!!FS_DOC.fullscreenElement);
+    const reader = useRef({}), userScrollAt = useRef(0), returnKey = useRef('BTN_LISTEN'), toastTimer = useRef();
+
+    const say = (icon, text) => {
+      clearTimeout(toastTimer.current); setToast({ icon, text });
+      toastTimer.current = setTimeout(() => setToast(null), 3200);
+    };
+
+    // Os botões PL_* somem quando o áudio para: se o foco estava num deles (ou ficou órfão), volta para "Ouvir texto"
+    const refocusAfterStop = () => {
+      const before = getCurrentFocusKey() || '';
+      setTimeout(() => {
+        if (before.startsWith('PL_') || !doesFocusableExist(getCurrentFocusKey())) setFocus('BTN_LISTEN');
+      }, 0);
+    };
+
+    const speech = useSpeech((why) => {
+      refocusAfterStop();
+      if (why === 'done') say('check_circle', 'Leitura em voz alta concluída');
+      else say('error', 'Não foi possível reproduzir o áudio. Tente de novo.');
+    });
+    const playing = speech.status === 'playing';
+    const active = speech.status !== 'idle';
+    const showTop = prog.pct > 0.01;
+
+    const listen = () => {
+      if (!speech.supported) return say('volume_off', 'Este navegador não tem leitura em voz alta');
+      if (playing) return speech.pause();
+      if (active) return speech.speakFrom(speech.idxRef.current);
+      userScrollAt.current = 0;
+      speech.speakFrom(reader.current.firstVisible());
+    };
+    const stopAll = () => { speech.stop(); refocusAfterStop(); };
+    const step = (d) => speech.speakFrom(clamp(speech.idxRef.current + d, 0, SENTENCES.length - 1));
+    const cycleSize = () => { const n = (sizeIdx + 1) % SIZES.length; setSizeIdx(n); save({ size: n }); };
+    const cycleRate = () => {
+      speech.setRate(RATES[(RATES.indexOf(speech.rate) + 1) % RATES.length]);
+      if (playing) speech.speakFrom(speech.idxRef.current);
+    };
+    // "Topo" some ao chegar no início: o foco passa para o botão à esquerda dele
+    const goTop = () => { reader.current.toTop(); setFocus(active ? 'PL_NEXT' : 'BTN_LISTEN'); };
+    // Nos botões, ↑ ↓ rolam o texto e o foco fica no lugar; ← → navegam. No topo do texto, ↑ segue a navegação.
+    const actionArrow = (dir) => {
+      if (dir === 'down') { reader.current.step(1); return false; }
+      if (dir === 'up') return !reader.current.step(-1);
+      return true;
+    };
+
+    const openModal = () => { returnKey.current = getCurrentFocusKey() || 'BTN_LISTEN'; setModal(true); };
+    const closeModal = () => { setModal(false); setTimeout(() => setFocus(doesFocusableExist(returnKey.current) ? returnKey.current : 'BTN_LISTEN'), 0); };
+    const exit = () => {
+      speech.stop(); setModal(false);
+      if (PARENT) PARENT.postMessage({ type: 'rot-post-exit' }, location.origin);
+      else location.href = './';
+    };
+
+    const toggleFullscreen = () => {
+      if (!FS_DOC.fullscreenEnabled) return say('fullscreen', 'Este navegador não permite tela cheia aqui');
+      const p = FS_DOC.fullscreenElement ? FS_DOC.exitFullscreen() : FS_DOC.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      Promise.resolve(p).catch(() => say('fullscreen', 'Não foi possível entrar em tela cheia'));
+    };
+
+    // Recolhe o hero após rolar, com histerese para não piscar no limite
+    const onProgress = (pct, first, top) => {
+      setCollapsed(c => top > 110 ? true : top < 36 ? false : c);
+      setProg({ pct, first });
+    };
+
+    useEffect(() => { setFocus('BTN_LISTEN'); }, []);
+    useEffect(() => {
+      const onFs = () => setIsFs(!!FS_DOC.fullscreenElement);
+      FS_DOC.addEventListener('fullscreenchange', onFs);
+      return () => FS_DOC.removeEventListener('fullscreenchange', onFs);
+    }, []);
+
+    // Voltar (Backspace / Esc / teclas de controle), teclas de mídia e guias (G)
+    useEffect(() => {
+      const onKey = (e) => {
+        if (e.key === 'Backspace' || e.key === 'Escape' || e.key === 'BrowserBack' || e.keyCode === 461 || e.keyCode === 10009) {
+          e.preventDefault();
+          if (modal) return closeModal();
+          const k = getCurrentFocusKey();
+          return k !== 'BTN_LISTEN' && k !== 'BTN_BACK' ? setFocus('BTN_LISTEN') : openModal();
+        }
+        if (modal) return;
+        if (['MediaPlayPause', 'MediaPlay', 'MediaPause'].includes(e.key)) { e.preventDefault(); listen(); }
+        else if (e.key === 'MediaStop') { e.preventDefault(); stopAll(); }
+        else if (e.key === 'MediaTrackNext' && active) step(1);
+        else if (e.key === 'MediaTrackPrevious' && active) step(-1);
+        else if (e.key === 'g' || e.key === 'G') setGuides(v => !v);
+      };
+      addEventListener('keydown', onKey);
+      return () => removeEventListener('keydown', onKey);
+    });
+
+    // Barra de ações: um único conjunto; os botões do player (PL_*) só aparecem com áudio ativo
+    const btn = (focusKey, icon, props) => html`<${TvButton} key=${focusKey} focusKey=${focusKey} icon=${icon} onArrow=${actionArrow} ...${props} />`;
+    const sizeLabel = 'Tamanho do texto: ' + SIZES[sizeIdx].label;
+    const buttons = [
+      btn('BTN_BACK', 'arrow_back', { label: 'Voltar', variant: 'back', onPress: openModal }),
+      active && btn('PL_PREV', 'skip_previous', { variant: 'icon', ariaLabel: 'Frase anterior', onPress: () => step(-1) }),
+      active
+        ? btn('BTN_LISTEN', playing ? 'pause' : 'play_arrow', { variant: 'icon primary', ariaLabel: playing ? 'Pausar leitura' : 'Continuar leitura', onPress: listen })
+        : btn('BTN_LISTEN', 'headphones', { label: 'Ouvir texto', variant: 'primary', onPress: listen }),
+      active && btn('PL_NEXT', 'skip_next', { variant: 'icon', ariaLabel: 'Próxima frase', onPress: () => step(1) }),
+      showTop && btn('BTN_TOP', 'arrow_upward', { variant: 'icon', ariaLabel: 'Voltar ao topo do texto', onPress: goTop }),
+      active && btn('PL_RATE', 'speed', { label: speech.rate.toLocaleString('pt-BR') + '×', ariaLabel: 'Velocidade ' + speech.rate, onPress: cycleRate }),
+      active && btn('PL_STOP', 'stop', { variant: 'icon', ariaLabel: 'Parar áudio', onPress: stopAll }),
+      active
+        ? btn('BTN_SIZE', 'format_size', { variant: 'icon', ariaLabel: sizeLabel, onPress: cycleSize })
+        : btn('BTN_SIZE', 'format_size', { label: 'Texto', sub: SIZES[sizeIdx].label, ariaLabel: sizeLabel, onPress: cycleSize }),
+      btn('BTN_FULLSCREEN', isFs ? 'fullscreen_exit' : 'fullscreen', { variant: 'icon', ariaLabel: isFs ? 'Sair da tela cheia' : 'Tela cheia', onPress: toggleFullscreen }),
+      btn('BTN_IMAGES', 'image', { label: 'Ver imagens', variant: 'end' })
+    ];
+
+    return html`<div class=${'app' + (collapsed ? ' collapsed' : '')}>
+      <header class="hero">
+        <div class="hero-img" aria-hidden="true"><img alt="" src=${HERO_IMG} /></div>
+        <div class="brand">
+          <svg class="logo" viewBox="0 0 100 100" aria-hidden="true">
+            <rect width="100" height="100" rx="18" fill="var(--accent)"></rect>
+            <circle cx="31.46" cy="32.77" r="18.54" fill="var(--bg)"></circle>
+          </svg>
+          <b>READ ON TV</b>
+        </div>
+        <span class="hero-div" aria-hidden="true"></span>
+        <h1 class="title">${TITLE}</h1>
+        <div class="hero-thumb" aria-hidden="true"><img alt="" src=${HERO_IMG} /></div>
+      </header>
+
+      <main class="body">
+        <div class="reader-wrap">
+          <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt} />
+          <div class="track" aria-hidden="true"><span class="fill" style=${{ height: prog.pct * 100 + '%' }}></span></div>
+          <${ReadingStats} pct=${prog.pct} from=${Math.max(prog.first, speech.idx)} />
+        </div>
+        <div class="dock"><${Row} focusKey="ACTIONS" className="actions">${buttons}<//></div>
+      </main>
+
+      ${guides && html`<div class="guides" aria-hidden="true"><span>Área segura · 5%</span></div>`}
+      ${modal && html`<${ExitDialog} onStay=${closeModal} onExit=${exit} />`}
+      ${toast && html`<div class="toast" role="status"><span class="ms">${toast.icon}</span>${toast.text}</div>`}
+    </div>`;
+  }
+
+  /* Controle pelo celular: a tela inicial recebe os comandos e repassa a tecla para este iframe */
+  addEventListener('message', (e) => {
+    const d = e.data;
+    if (e.origin !== location.origin || !d || d.type !== 'rot-key') return;
+    ['keydown', 'keyup'].forEach(type => {
+      const ev = new KeyboardEvent(type, { key: d.key, code: d.code || d.key, bubbles: true, cancelable: true });
+      try { Object.defineProperty(ev, 'keyCode', { get: () => d.keyCode }); } catch (err) {}
+      document.dispatchEvent(ev);
+    });
+  });
+
+  ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+})();
+</script>
+</html>
