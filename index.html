@@ -1197,7 +1197,8 @@ html.unsupported .unsupported-screen {
     var f = postFrame = document.createElement('iframe');
     f.title = s.title;
     f.setAttribute('allow', 'fullscreen; autoplay');
-    f.src = 'post.html?id=' + s.id;
+    /* O GitHub Pages deixa o navegador guardar a página por 10 min: o parâmetro t garante a versão publicada */
+    f.src = 'post.html?id=' + s.id + '&t=' + Date.now();
     f.addEventListener('load', function () {
       if (overlay !== postView || postFrame !== f) return;
       try { f.focus(); f.contentWindow.focus(); } catch (err) {}
