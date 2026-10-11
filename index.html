@@ -1761,10 +1761,10 @@ html.unsupported .unsupported-screen {
   });
   rows.forEach(function (r) { if (r.type === 'rail') applyRailPointer(r); });
   focusRow(1);
-  /* O Silk do Fire TV abre com o cursor virtual; mouse de desktop também começa no modo cursor */
-  var startPointer = /Silk/i.test(navigator.userAgent) ||
-    (window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
-  if (startPointer) setMode('pointer');
+  /* A home abre com foco na notícia em destaque (.feature), também no computador com mouse:
+     mexer o mouse, clicar ou rolar troca para o modo cursor. Só o Silk do Fire TV, que abre com o
+     cursor virtual (sem setas), começa no modo cursor. */
+  if (/Silk/i.test(navigator.userAgent)) setMode('pointer');
   booted = true;
   window.addEventListener('load', function () {
     if (mode === 'kbd' && !overlay && (!document.activeElement || document.activeElement === document.body)) focusRow(1);
