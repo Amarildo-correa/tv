@@ -88,7 +88,7 @@
      Área = tela − padding do topo (2.5) − header (4.5) − espaço até o conteúdo (1.5) */
   --vp-h: calc(100vh - 8.5rem);
   --row-gap: 2.5rem;  /* espaço entre linhas */
-  --head-h: 2.5rem;   /* título da linha (2rem × 1.25) */
+  --head-h: 3.125rem; /* título da linha (2.5rem × 1.25) */
   --head-gap: 1rem;   /* título → cards */
   --row-h: calc((var(--vp-h) - var(--row-gap)) / 1.5);
   --card-h: calc(var(--row-h) - var(--head-h) - var(--head-gap));
@@ -252,9 +252,9 @@ html.pointer .feature:hover .tvbtn, html.pointer .wx:hover .tvbtn {
 /* Notícia em destaque — sem foco: brilho azul na borda esquerda e no canto inferior esquerdo;
    com foco: fundo liso (--bg), anel branco no .feature-clip e o botão .tvbtn em destaque */
 .feature {
-  /* Altura do próprio conteúdo (editoria, título, hora e botão), sem esticar até a altura da previsão:
+  /* Vai até a base do .tvbtn da previsão do tempo (altura do bloco menos o padding de baixo do .wx, 1.75rem):
      o .feature-clip (fundo, foto e anel de foco) acompanha */
-  position: relative; height: auto; -ms-flex-item-align: start; align-self: start; min-width: 0;
+  position: relative; height: calc(100% - 1.75rem); -ms-flex-item-align: start; align-self: start; min-width: 0;
   border-radius: 1rem;
   outline: none;
   --fb: 18, 18, 18;
@@ -372,7 +372,7 @@ html:not(.pointer) .wx:focus .wx-msg { margin-right: 0; }
 .rail-wrap::after { right: 0; background: linear-gradient(to left, rgba(18, 18, 18, .7), rgba(18, 18, 18, 0)); }
 .row { display: flex; flex-direction: column; min-width: 0; }
 .row-head { display: flex; align-items: baseline; justify-content: space-between; }
-.row-head h2 { margin: 0; font-family: var(--font-title); font-weight: 700; font-size: 2rem; line-height: 1.25; color: var(--text-title); font-variant-numeric: lining-nums; }
+.row-head h2 { margin: 0; font-family: var(--font-title); font-weight: 700; font-size: 2.5rem; /* 40 px em 1080p */ line-height: 1.25; color: var(--text-title); font-variant-numeric: lining-nums; }
 .rail {
   position: relative;
   overflow: hidden;
