@@ -205,7 +205,6 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const BEHAVIOR = REDUCE ? 'auto' : 'smooth';
 
   /* ---------- Conteúdo ---------- */
   /* A notícia vem de stories.js (a mesma base da tela inicial), escolhida por ?id=N */
@@ -234,6 +233,61 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   const STORE = 'readontv:post-' + STORY.id;
   const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { return {}; } };
   const save = (v) => { try { localStorage.setItem(STORE, JSON.stringify({ ...load(), ...v })); } catch (e) {} };
+
+  /* ---------- Rolagem do texto pelas setas (como a rolagem nativa do navegador) ----------
+     Toque em ↑/↓: rola um pouco, com uma animação curta. Segurando: depois de HOLD_DELAY, rola contínuo
+     em velocidade de leitura, com arranque suave, e para com desaceleração curta ao soltar.
+     Um único laço de requestAnimationFrame só escreve scrollTop: não lê layout a cada quadro e não
+     depende de scrollTo({ behavior }), que TVs antigas não têm. Medidas em linhas do texto, então o
+     passo e a velocidade acompanham o tamanho da fonte. */
+  const SCROLL = {
+    TAP_LINES: 1.5,             // quanto um toque rola, em linhas
+    HOLD_DELAY: 280,            // ms segurando até começar a rolagem contínua
+    SPEED_LINES: 6,             // velocidade da rolagem contínua, em linhas por segundo
+    RAMP: 300,                  // ms até chegar à velocidade máxima
+    EASE: REDUCE ? 0 : 60,      // suavização em ms (0 = sem animação, para "reduzir movimento")
+    STALE: 450                  // sem repetição da tecla nem keyup por este tempo = solta (controle que perde o keyup)
+  };
+
+  function createScroller(getEl, getLine) {
+    let pos = 0, target = 0, hold = null, raf = 0, last = 0;
+    const max = () => { const e = getEl(); return Math.max(0, e.scrollHeight - e.clientHeight); };
+    const sync = () => { if (!raf) pos = target = getEl().scrollTop; };   // parado: parte de onde o texto está
+    const frame = (now) => {
+      const dt = clamp(now - last, 0, 64); last = now;   // limita dt: um quadro atrasado não vira salto
+      const m = max();
+      if (hold) {
+        if (hold.repeated && now - hold.seen > SCROLL.STALE) hold = null;
+        else {
+          const t = now - hold.start - SCROLL.HOLD_DELAY;
+          if (t > 0) {
+            const speed = getLine() * SCROLL.SPEED_LINES / 1000 * Math.min(1, t / SCROLL.RAMP);
+            target = clamp(target + hold.dir * speed * dt, 0, m);
+          }
+        }
+      }
+      pos += (target - pos) * (SCROLL.EASE ? 1 - Math.exp(-dt / SCROLL.EASE) : 1);
+      if (!hold && Math.abs(target - pos) < 0.5) pos = target;
+      getEl().scrollTop = pos;
+      raf = hold || pos !== target ? requestAnimationFrame(frame) : 0;
+    };
+    const run = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+    return {
+      atTop: () => { sync(); return target <= 4; },
+      // dir: 1 desce, -1 sobe. repeat: a tecla continua apertada (repetição automática do controle)
+      press(dir, repeat) {
+        const now = performance.now();
+        if (repeat && hold && hold.dir === dir) { hold.repeated = true; hold.seen = now; return; }
+        sync();
+        target = clamp(target + dir * getLine() * SCROLL.TAP_LINES, 0, max());
+        hold = { dir, start: now, seen: now, repeated: false };
+        run();
+      },
+      release() { hold = null; },
+      to(y) { sync(); hold = null; target = clamp(y, 0, max()); run(); },
+      stop() { cancelAnimationFrame(raf); raf = 0; hold = null; }
+    };
+  }
 
   /* ---------- Leitura em voz alta (Web Speech API) ---------- */
   function useSpeech(onEnd) {
@@ -311,11 +365,15 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     return html`<${FocusContext.Provider} value=${fk}><div ref=${ref} class=${className}>${children}</div><//>`;
   }
 
-  // Área de leitura. Expõe firstVisible / step / toTop pelo objeto `api`.
+  // Área de leitura. Expõe firstVisible / press / release / atTop / toTop pelo objeto `api`.
   function Reader({ sizePx, idx, api, onProgress, userScrollAt }) {
-    const el = useRef(null), target = useRef(null), pct = useRef(load().scroll || 0);
+    const el = useRef(null), pct = useRef(load().scroll || 0), line = useRef(0), timers = useRef({});
     const [edges, setEdges] = useState({ top: true, end: false });
     const maxScroll = () => el.current.scrollHeight - el.current.clientHeight;
+    line.current = sizePx * 1.5;   // .prose usa line-height: 1.5
+    const scroller = useRef(null);
+    if (!scroller.current) scroller.current = createScroller(() => el.current, () => line.current);
+    const touched = () => { userScrollAt.current = Date.now(); };
 
     const firstVisible = () => {
       for (const s of el.current.querySelectorAll('[data-s]'))
@@ -323,36 +381,37 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       return 0;
     };
     const measure = () => {
-      const top = el.current.scrollTop, max = maxScroll();
-      setEdges({ top: top < 4, end: top >= max - 4 });
+      const top = el.current.scrollTop, max = maxScroll(), t = top < 4, end = top >= max - 4;
+      setEdges(p => p.top === t && p.end === end ? p : { top: t, end });
       onProgress(max <= 0 ? 1 : top / max, firstVisible(), top);
-    };
-    const userScrollTo = (top) => {
-      target.current = top;
-      el.current.scrollTo({ top, behavior: BEHAVIOR });
-      userScrollAt.current = Date.now();
     };
 
     api.current = {
       firstVisible,
-      toTop: () => userScrollTo(0),
-      step(dir) {   // rola ~meia tela; false se já está no limite
-        const e = el.current, max = maxScroll();
-        const from = target.current != null && Math.abs(target.current - e.scrollTop) > 2 ? target.current : e.scrollTop;
-        if (dir > 0 ? from >= max - 4 : from <= 4) return false;
-        userScrollTo(clamp(from + dir * e.clientHeight * 0.55, 0, max));
-        return true;
-      }
+      atTop: () => scroller.current.atTop(),
+      press: (dir, repeat) => { touched(); scroller.current.press(dir, repeat); },
+      release: () => scroller.current.release(),
+      toTop: () => { touched(); scroller.current.to(0); }
     };
 
     // Restaura a posição salva e mantém a proporção ao mudar o tamanho do texto
-    useEffect(() => { el.current.scrollTop = pct.current * maxScroll(); measure(); }, [sizePx]);
+    useEffect(() => { scroller.current.stop(); el.current.scrollTop = pct.current * maxScroll(); measure(); }, [sizePx]);
 
+    // Grava a posição ao sair da tela, mesmo que a gravação adiada ainda não tenha acontecido
+    useEffect(() => {
+      const flush = () => { clearTimeout(timers.current.save); save({ scroll: pct.current }); };
+      addEventListener('pagehide', flush);
+      return () => { removeEventListener('pagehide', flush); flush(); scroller.current.stop(); clearTimeout(timers.current.measure); };
+    }, []);
+
+    // A rolagem dispara um evento por quadro. Barra de progresso, tempo restante e bordas atualizam
+    // no máximo a cada 100 ms, e a posição só é gravada 400 ms depois que a rolagem para.
     const onScroll = () => {
-      const max = maxScroll();
+      const max = maxScroll(), tm = timers.current;
       pct.current = max > 0 ? el.current.scrollTop / max : 0;
-      save({ scroll: pct.current });
-      measure();
+      if (!tm.measure) tm.measure = setTimeout(() => { tm.measure = 0; measure(); }, 100);
+      clearTimeout(tm.save);
+      tm.save = setTimeout(() => save({ scroll: pct.current }), 400);
     };
 
     // Acompanha a frase falada (exceto logo após o usuário rolar)
@@ -361,10 +420,10 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       if (!span || Date.now() - userScrollAt.current < 5000) return;
       const top = span.offsetTop, bottom = top + span.offsetHeight;
       if (top < e.scrollTop + e.clientHeight * 0.12 || bottom > e.scrollTop + e.clientHeight * 0.7)
-        e.scrollTo({ top: Math.max(0, top - e.clientHeight * 0.25), behavior: BEHAVIOR });
+        scroller.current.to(Math.max(0, top - e.clientHeight * 0.25));
     }, [idx]);
 
-    return html`<div ref=${el} onScroll=${onScroll} onWheel=${() => { userScrollAt.current = Date.now(); }}
+    return html`<div ref=${el} onScroll=${onScroll} onWheel=${touched}
         class=${'reader' + (edges.top ? '' : ' scrolled') + (edges.end ? ' at-end' : '')}
         tabIndex="-1" role="article" aria-label="Texto do artigo">
       <div class="prose" style=${{ '--read-size': sizePx + 'px' }}>
@@ -452,12 +511,23 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     };
     // "Topo" some ao chegar no início: o foco passa para o botão à esquerda dele
     const goTop = () => { reader.current.toTop(); setFocus(active ? 'PL_NEXT' : 'BTN_LISTEN'); };
-    // Nos botões, ↑ ↓ rolam o texto e o foco fica no lugar; ← → navegam. No topo do texto, ↑ segue a navegação.
-    const actionArrow = (dir) => {
-      if (dir === 'down') { reader.current.step(1); return false; }
-      if (dir === 'up') return !reader.current.step(-1);
-      return true;
+    // Nos botões, ↑ ↓ rolam o texto e o foco fica no lugar; ← → navegam.
+    // Toque rola um pouco; segurando, rola contínuo até soltar (keyup, tratado abaixo).
+    // No topo do texto, um toque novo em ↑ segue a navegação; segurando, a rolagem só para no topo.
+    const actionArrow = (dir, _props, details) => {
+      if (dir !== 'up' && dir !== 'down') return true;
+      const repeat = !!(details && details.pressedKeys && details.pressedKeys[dir] > 1);
+      if (dir === 'up' && !repeat && reader.current.atTop()) return true;
+      reader.current.press(dir === 'down' ? 1 : -1, repeat);
+      return false;
     };
+    useEffect(() => {
+      const onUp = (e) => {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.keyCode === 38 || e.keyCode === 40) reader.current.release();
+      };
+      addEventListener('keyup', onUp);
+      return () => removeEventListener('keyup', onUp);
+    }, []);
 
     const openModal = () => { returnKey.current = getCurrentFocusKey() || 'BTN_LISTEN'; setModal(true); };
     const closeModal = () => { setModal(false); setTimeout(() => setFocus(doesFocusableExist(returnKey.current) ? returnKey.current : 'BTN_LISTEN'), 0); };
