@@ -228,13 +228,13 @@ html:not(.pointer) .pill:focus { background: var(--focus); color: var(--on-focus
 }
 
 /* Botões do destaque: sempre visíveis, no mesmo estilo .tvbtn da tela de leitura (post.html).
-   Parado: pílula cinza translúcida. Com foco no bloco (ou hover no modo cursor): igual ao foco da nav. */
+   Parado: mesmo fundo da pílula ativa da nav ("Início"). Com foco no bloco (ou hover no modo cursor): igual ao foco da nav. */
 .cta-wrap > div { display: flex; }
 .tvbtn {
   box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
   height: 5.25rem; padding: 0 2.125rem 0 1.75rem; border-radius: 2.75rem;
   font-family: var(--font-title); font-weight: 700; font-size: 2.25rem; line-height: 1; white-space: nowrap;
-  color: #E9ECF2; background: rgba(233, 236, 242, .1); border: 0;
+  color: var(--text-title); background: var(--surface-focus); border: 0; /* parado: igual à pílula ativa da nav ("Início") */
   transition: transform var(--dur) ease, background-color var(--dur) ease, color var(--dur) ease;
 }
 .tvbtn > .ms { font-size: 2.75rem; margin-right: .875rem; }
