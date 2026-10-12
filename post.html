@@ -149,7 +149,7 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 /* Fim do texto: "Fim da matéria" logo depois da última palavra, no mesmo estilo das frases (span.s),
    só na cor de destaque; ↓ no fim faz a marca "quicar" */
 .s.end { display: inline-block; color: var(--accent); }
-.recs-anchor { margin-top: 40px; }   /* respiro entre "Fim da matéria" e as recomendadas */
+.recs-anchor { margin-top: 0; }
 
 /* ---------- Notícias recomendadas ----------
    Fora da área que rola, numa camada da largura toda da tela (div.stage), sobre a área de leitura.
@@ -467,9 +467,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       if (!e || !a || !l || !i) return;
       const w = e.parentNode;   // .reader-wrap
       l.style.top = w.offsetTop + 'px'; l.style.height = w.offsetHeight + 'px';
-      // Pelo menos a altura da área de leitura: no fim da página o texto (e o "Fim da matéria") já passou
-      // por baixo do hero, e as recomendadas ficam encostadas na base
-      const hgt = Math.max(i.offsetHeight, e.clientHeight) + 'px';
+      const hgt = i.offsetHeight + 'px';   // só a altura das recomendadas, sem espaço extra em cima
       if (a.style.height !== hgt) a.style.height = hgt;
       i.style.transform = 'translateY(' + (recsY(a, i) - e.scrollTop) + 'px)';
     };
@@ -517,8 +515,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
         const tr = rw.firstChild, y = recsY(a, inner.current) - top + rw.offsetTop + tr.offsetTop + 12, yb = y + tr.offsetHeight - 24;
         railVisible = y >= (top < 4 ? 0 : 80) && yb <= h - bottomFade(top);
       }
-      // Último span.s ("Fim da matéria") já passou por baixo do hero (acima do topo da área de leitura)
-      const endPassed = !!m && m.offsetTop + m.offsetHeight <= top;
+      // Último span.s ("Fim da matéria") entrou por baixo do hero (no degradê do topo), ou a rolagem chegou ao fim
+      const endPassed = !!m && (m.offsetTop + m.offsetHeight <= top + 80 || (end && ev));
       onProgress(ev || endMax <= 0 ? 1 : clamp(top / endMax, 0, 1), firstVisible(), top, ev, railVisible, endPassed);
     };
 
