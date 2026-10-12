@@ -450,7 +450,15 @@ html:not(.pointer) .wx:focus .wx-msg { margin-right: 0; }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .n-time { font-size: var(--size-meta); line-height: 1.25; color: var(--text-meta); }
-.card .n-tag { font-size: var(--size-card-tag); }
+.card .n-tag { position: relative; align-self: flex-start; font-size: var(--size-card-tag); text-shadow: 0 1px .5rem rgba(var(--fade), .9); }
+/* Máscara atrás da tag: gradiente radial ancorado na tag, que escurece a parte da foto onde ela começa e
+   some suavemente para cima e para a direita (acompanha --fade, inclusive no hover do cursor) */
+.card .n-tag::before {
+  content: ''; position: absolute; z-index: -1; pointer-events: none;
+  top: -6rem; right: -10rem; bottom: -.5rem; left: -1.5rem;
+  background: radial-gradient(ellipse 100% 100% at 0% 100%,
+    rgba(var(--fade), .96) 0%, rgba(var(--fade), .88) 35%, rgba(var(--fade), .55) 62%, rgba(var(--fade), .2) 82%, rgba(var(--fade), 0) 100%);
+}
 .card .n-title { font-size: var(--size-card-rail-title); }
 h3.n-title { color: var(--text-title); } /* títulos dos cards em branco; o destaque (h2) segue no azul */
 .card .n-time { font-size: var(--size-card-time); }
