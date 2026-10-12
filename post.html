@@ -201,6 +201,7 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 .dock { flex: none; padding-top: 24px; }
+.actions.rail-mode > :not([data-k="BTN_BACK"]):not([data-k="BTN_TOP"]) { visibility: hidden; }   /* foco nos cards: só Voltar e Ler novamente */
 .actions .slot { flex: none; width: 84px; height: 84px; }   /* lugar do Topo quando ele some: os outros botões não andam */
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 28px; }   /* folga para o anel de foco não encostar no vizinho */
 
@@ -435,7 +436,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   /* ---------- Componentes focáveis ---------- */
   function TvButton({ focusKey, icon, label, sub, onPress, onArrow, onFocus, variant = '', ariaLabel }) {
     const { ref, focused } = useFocusable({ focusKey, onEnterPress: () => onPress && onPress(), onArrowPress: onArrow, onFocus });
-    return html`<button ref=${ref} type="button" tabIndex="-1"
+    return html`<button ref=${ref} type="button" tabIndex="-1" data-k=${focusKey}
       class=${'tvbtn ' + variant + (focused ? ' focused' : '')}
       aria-label=${ariaLabel || label}
       onMouseDown=${e => e.preventDefault()}
@@ -452,7 +453,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   }
 
   // Área de leitura. Expõe firstVisible / press / release / atTop / toTop pelo objeto `api`.
-  function Reader({ sizePx, idx, api, onProgress, userScrollAt, onRecsUp, onRecsDown }) {
+  function Reader({ sizePx, idx, api, onProgress, userScrollAt, onRecsUp, onRecsDown, onRecsActive }) {
     const { Fragment } = React;
     const el = useRef(null), pct = useRef(load().scroll || 0), line = useRef(0), timers = useRef({});
     const [edges, setEdges] = useState({ top: true, end: false });
@@ -581,7 +582,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       <div ref=${live} class="sr" role="status" aria-live="polite"></div>
     </div>
     <div ref=${layer} class=${'recs-layer' + (edges.end ? ' at-end' : '')}>
-      <div ref=${inner} class="recs-inner"><${Recommended} onUp=${onRecsUp} onDown=${onRecsDown} /></div>
+      <div ref=${inner} class="recs-inner"><${Recommended} onUp=${onRecsUp} onDown=${onRecsDown} onActive=${onRecsActive} /></div>
     </div><//>`;
   }
 
@@ -613,8 +614,9 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   // Rail como o da home: 2 cards inteiros na largura da tela, peeks nas laterais, anel de foco fixo no
   // 1º lugar e a fila desliza para o card focado ficar nele.
   // ← → andam entre os cards; ↑ volta ao "Ler novamente"; ↓ vai para a barra de ações.
-  function Recommended({ onUp, onDown }) {
+  function Recommended({ onUp, onDown, onActive }) {
     const { ref, focusKey, hasFocusedChild } = useFocusable({ focusKey: 'RECS', saveLastFocusedChild: true, trackChildren: true });
+    useEffect(() => { onActive && onActive(hasFocusedChild); }, [hasFocusedChild]);
     const [idx, setIdx] = useState(0);
     const track = useRef(null);
     const onArrow = (dir, i) => {
@@ -724,6 +726,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     // Cards recomendados: quando a linha fica inteira na tela, o foco vai sozinho para o 1º card
     // (não com áudio tocando nem com o diálogo aberto, e não se o foco já está num card)
     const [railVisible, setRailVisible] = useState(false);
+    const [recsFocused, setRecsFocused] = useState(false);   // foco num card recomendado
     const railSeen = useRef(false);
     useEffect(() => {
       const was = railSeen.current; railSeen.current = railVisible;
@@ -911,7 +914,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       <main class="body">
         <div class="reader-wrap">
           <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt}
-            onRecsUp=${recsUp} onRecsDown=${recsDown} />
+            onRecsUp=${recsUp} onRecsDown=${recsDown} onRecsActive=${setRecsFocused} />
           <div class="track" aria-hidden="true"><span class="fill" style=${{ height: prog.pct * 100 + '%' }}></span></div>
           <div class="side">
             <${ReadingStats} done=${atEnd} from=${Math.max(prog.first, speech.idx)} />
@@ -925,7 +928,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
             </div>`}
           </div>
         </div>
-        <div class="dock"><${Row} focusKey="ACTIONS" className="actions">${buttons}<//></div>
+        <div class="dock"><${Row} focusKey="ACTIONS" className=${'actions' + (recsFocused ? ' rail-mode' : '')}>${buttons}<//></div>
       </main>
 
       ${guides && html`<div class="guides" aria-hidden="true"><span>Área segura · 5%</span></div>`}
