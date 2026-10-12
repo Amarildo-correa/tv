@@ -148,6 +148,7 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 .end-mark { position: relative; margin-top: 1.4em; padding-top: .8em; border-top: 2px solid var(--line); line-height: 1.35; color: var(--muted); }
 /* "Fim da matéria" sempre em destaque: azul e um pouco maior que o texto corrido */
 .end-mark strong { display: block; color: var(--accent); font-size: 1.1em; line-height: 1.25; font-weight: 700; }
+.recs { margin-top: 1.2em; }   /* Cards de notícias recomendadas (ainda vazio) */
 .end-mark.bump { animation: end-bump .5s var(--ease); }
 .end-mark.bump strong { animation: end-flash 1s ease; }
 @keyframes end-bump { 30% { transform: translateY(-14px); } }
@@ -495,9 +496,10 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     </div>`;
   }
 
+  // Bloco logo depois de "Fim da matéria" (div.end-mark), já presente na tela
   function Recommended() {
     // Aqui ficará Cards de notícias recomendadas.
-    return null;
+    return html`<section class="recs"></section>`;
   }
 
   // Tempo restante, calculado pelas palavras que faltam a partir do ponto real de leitura
