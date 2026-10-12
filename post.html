@@ -145,9 +145,9 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 .hint .key .ms { font-size: 44px; }
 
 /* Fim do texto: marca fixa depois do último parágrafo; ↓ no fim faz a marca "quicar" */
-.end-mark { position: relative; margin-top: 1.4em; padding-top: .8em; border-top: 2px solid var(--line); font-size: .78em; line-height: 1.35; color: var(--muted); }
-.end-mark strong { display: block; color: var(--fg); font-weight: 700; transition: color .25s; }
-.reader.at-end .end-mark strong { color: var(--accent); }   /* chegou ao fim: "Fim da matéria" em destaque */
+.end-mark { position: relative; margin-top: 1.4em; padding-top: .8em; border-top: 2px solid var(--line); line-height: 1.35; color: var(--muted); }
+/* "Fim da matéria" sempre em destaque: azul e um pouco maior que o texto corrido */
+.end-mark strong { display: block; color: var(--accent); font-size: 1.1em; line-height: 1.25; font-weight: 700; }
 .end-mark.bump { animation: end-bump .5s var(--ease); }
 .end-mark.bump strong { animation: end-flash 1s ease; }
 @keyframes end-bump { 30% { transform: translateY(-14px); } }
@@ -719,7 +719,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       active && btn('PL_PREV', 'skip_previous', { variant: 'icon', ariaLabel: 'Frase anterior', onPress: () => step(-1) }),
       active
         ? btn('BTN_LISTEN', playing ? 'pause' : 'play_arrow', { variant: 'icon primary', ariaLabel: playing ? 'Pausar leitura' : 'Continuar leitura', onPress: listen })
-        : btn('BTN_LISTEN', 'headphones', { label: 'Ouvir texto', variant: 'primary', onPress: listen }),
+        : btn('BTN_LISTEN', 'headphones', { label: 'Ouvir texto', onPress: listen }),
       active && btn('PL_NEXT', 'skip_next', { variant: 'icon', ariaLabel: 'Próxima frase', onPress: () => step(1) }),
       showTop && (atEnd
         ? btn('BTN_TOP', 'arrow_upward', { label: 'Ler novamente', ariaLabel: 'Ler novamente desde o início', onPress: goTop })
