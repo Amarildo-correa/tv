@@ -120,6 +120,8 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 .reader.scrolled { --mask: linear-gradient(transparent, #000 80px, #000 calc(100% - 150px), transparent); }
 .reader.scrolled.at-end { --mask: linear-gradient(transparent, #000 80px); }
 .reader.at-end:not(.scrolled) { --mask: none; }
+/* Fim da matéria na tela (barra de ações oculta): sem degradê na base, só o do topo */
+.end-zone .reader.scrolled, .end-zone .recs-layer { --mask: linear-gradient(transparent, #000 80px); }
 /* Com "Ler novamente" à mostra, a base fica sem degradê: o botão pode encostar na barra de ações sem rolar o texto */
 .prose { max-width: 1220px; font-size: var(--read-size); line-height: 1.5; }
 .prose p { margin: 0 0 .85em; font-weight: 500; }
@@ -149,7 +151,7 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 /* Fim do texto: "Fim da matéria" logo depois da última palavra, no mesmo estilo das frases (span.s),
    só na cor de destaque; ↓ no fim faz a marca "quicar" */
 .s.end { display: inline-block; color: var(--accent); }
-.recs-anchor { margin-top: 24px; }
+.recs-anchor { margin-top: 56px; }   /* espaço entre Voltar / Ler novamente e "Notícias recomendadas" */
 /* Voltar e Ler novamente logo abaixo da linha do "Fim da matéria", rolando junto com o texto */
 .end-actions { display: flex; align-items: center; gap: 28px; margin-top: 36px; }
 
@@ -164,7 +166,7 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 }
 .recs-layer.at-end { --mask: linear-gradient(transparent, #000 80px); }
 .recs-inner { position: relative; will-change: transform; }
-.recs { --g: 144px; --cw: 800px; --gap: 32px; --fade: 13, 14, 17; padding-bottom: 8px; background: var(--bg); }   /* fundo sólido: cobre a barra de progresso */
+.recs { --g: 144px; --cw: 800px; --gap: 32px; --fade: 13, 14, 17; padding-bottom: 54px; background: var(--bg); }   /* fundo sólido: cobre a barra de progresso; base = área segura (5%) */
 .recs h2 { margin: 0 0 4px; padding: 0 var(--g); font: 700 40px/1.25 var(--font); color: var(--fg); }
 .rail-wrap { position: relative; }
 /* Peeks: escurece as laterais, como na home */
@@ -457,7 +459,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   }
 
   // Área de leitura. Expõe firstVisible / press / release / atTop / toTop pelo objeto `api`.
-  function Reader({ sizePx, idx, api, onProgress, userScrollAt, onRecsUp, onRecsDown, onRecsActive, onEndBack, onReread, onEndArrow }) {
+  function Reader({ sizePx, idx, api, onProgress, userScrollAt, onRecsUp, onRecsDown, onRecsActive, onEndBack, onReread, onEndArrow, endZone }) {
     const { Fragment } = React;
     const el = useRef(null), pct = useRef(load().scroll || 0), line = useRef(0), timers = useRef({});
     const [edges, setEdges] = useState({ top: true, end: false });
@@ -498,7 +500,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     };
     // "Fim da matéria" inteiro na área nítida da leitura, fora das máscaras de degradê
     // (80 px no topo quando já rolou; 150 px na base, que somem no fim da rolagem — .at-end)
-    const bottomFade = (top) => top >= maxScroll() - 4 ? 0 : 150;
+    const endZoneRef = useRef(endZone); endZoneRef.current = endZone;
+    const bottomFade = (top) => endZoneRef.current || top >= maxScroll() - 4 ? 0 : 150;   // sem degradê da base no fim (.end-zone)
     const endVisible = () => {
       const e = el.current, m = endMark.current;
       if (!m) return false;
@@ -961,7 +964,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
 
       <main class=${'body' + (dockOff ? ' end-zone' : '')}>
         <div class="reader-wrap">
-          <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt}
+          <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt} endZone=${dockOff}
             onRecsUp=${recsUp} onRecsDown=${recsDown} onRecsActive=${setRecsFocused}
             onEndBack=${openModal} onReread=${goTop} onEndArrow=${endArrow} />
           <div class="track" aria-hidden="true"><span class="fill" style=${{ height: prog.pct * 100 + '%' }}></span></div>
