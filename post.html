@@ -106,7 +106,9 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 
 /* ---------- Coluna 2: leitura + ações ---------- */
 .body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 var(--safe-x) var(--safe-y); }
-.reader-wrap { flex: 1; min-height: 0; display: flex; gap: 28px; margin-top: 40px; transition: margin-top .25s ease; }
+.reader-wrap { flex: 1; min-height: 0; display: flex; gap: 28px; margin-top: 40px; }
+/* Sem transição na altura: a troca do hero é compensada na rolagem no mesmo quadro (ver onProgress),
+   então o texto que está na tela não se mexe; uma animação aqui faria o texto deslizar */
 .collapsed .reader-wrap { margin-top: 30px; }
 
 .reader {
@@ -220,7 +222,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   const fit = () => stage.style.setProperty('--s', Math.min(innerWidth / 1920, innerHeight / 1080));
   fit(); addEventListener('resize', fit);
 
-  const { useState, useEffect, useRef } = React;
+  const { useState, useEffect, useLayoutEffect, useRef } = React;
   const html = htm.bind(React.createElement);
   const { init, useFocusable, FocusContext, setFocus, getCurrentFocusKey, doesFocusableExist } = SpatialNav;
   init({ throttle: 90, throttleKeypresses: true });
@@ -316,6 +318,13 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       },
       release() { hold = null; },
       to(y) { sync(); hold = null; target = clamp(y, 0, max()); run(); },
+      // Desloca a rolagem (inclusive no meio de uma animação) sem mudar o que está na tela
+      shift(d) {
+        const e = getEl();
+        if (raf) { pos += d; target = clamp(target + d, 0, max()); }
+        e.scrollTop += d;
+        if (!raf) pos = target = e.scrollTop;
+      },
       stop() { cancelAnimationFrame(raf); raf = 0; hold = null; }
     };
   }
@@ -432,7 +441,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       canScroll: () => maxScroll() > 4,
       press: (dir, repeat) => { touched(); scroller.current.press(dir, repeat); },
       release: () => scroller.current.release(),
-      toTop: () => { touched(); scroller.current.to(0); }
+      toTop: () => { touched(); scroller.current.to(0); },
+      shift: (d) => scroller.current.shift(d)
     };
 
     // Restaura a posição salva e mantém a proporção ao mudar o tamanho do texto
@@ -615,11 +625,42 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       Promise.resolve(p).catch(() => say('fullscreen', 'Não foi possível entrar em tela cheia'));
     };
 
-    // Recolhe o hero após rolar, com histerese para não piscar no limite
+    // Hero recolhe sem "pulo" no texto. Recolher sobe o topo da leitura em `gap` px; para o texto na tela
+    // ficar parado, a rolagem desce o mesmo tanto no mesmo quadro. Por isso só recolhe depois que o texto já
+    // subiu mais que `gap` (a 1ª linha chegou à altura do hero recolhido): aí há rolagem para compensar.
+    // Ao expandir (de volta ao início), o inverso: a rolagem sobe `gap` e o texto continua no lugar.
+    const appEl = useRef(null), gap = useRef(0), collapsedRef = useRef(false);
+    collapsedRef.current = collapsed;
+    const measureGap = () => {
+      const a = appEl.current, r = a && a.querySelector('.reader');
+      if (!r) return 0;
+      const was = a.classList.contains('collapsed');
+      a.classList.remove('collapsed'); const open = r.offsetTop;
+      a.classList.add('collapsed'); const shut = r.offsetTop;
+      a.classList.toggle('collapsed', was);
+      return (gap.current = Math.max(0, open - shut));
+    };
     const onProgress = (pct, first, top) => {
-      setCollapsed(c => top > 110 ? true : top < 36 ? false : c);
+      const c = collapsedRef.current;
+      if (!c && top >= gap.current + 24) setCollapsed(true);
+      else if (c && top < 8) setCollapsed(false);
       setProg({ pct, first });
     };
+    // Mede a diferença de altura do hero (de novo quando as fontes carregam ou a janela muda)
+    useLayoutEffect(() => {
+      measureGap();
+      const re = () => measureGap();
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(re);
+      addEventListener('resize', re);
+      return () => removeEventListener('resize', re);
+    }, []);
+    // Antes de pintar: compensa a rolagem pela mudança de altura do hero
+    const firstLayout = useRef(true);
+    useLayoutEffect(() => {
+      if (firstLayout.current) { firstLayout.current = false; return; }
+      const g = measureGap();
+      if (g && reader.current.shift) reader.current.shift(collapsed ? -g : g);
+    }, [collapsed]);
 
     useEffect(() => { setFocus('BTN_LISTEN'); }, []);
     useEffect(() => {
@@ -668,7 +709,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       btn('BTN_IMAGES', 'image', { label: 'Ver imagens', variant: 'end' })
     ];
 
-    return html`<div class=${'app' + (collapsed ? ' collapsed' : '')}>
+    return html`<div ref=${appEl} class=${'app' + (collapsed ? ' collapsed' : '')}>
       <header class="hero">
         <div class="hero-img" aria-hidden="true"><img alt="" src=${HERO_IMG} /></div>
         <div class="brand">
