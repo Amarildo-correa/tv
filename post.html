@@ -146,10 +146,9 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 }
 .hint .key .ms { font-size: 44px; }
 
-/* Fim do texto: marca fixa depois do último parágrafo; ↓ no fim faz a marca "quicar" */
-.end-mark { position: relative; margin-top: 1.4em; padding-top: .8em; border-top: 2px solid var(--line); line-height: 1.35; color: var(--muted); }
-/* "Fim da matéria" sempre em destaque: azul e um pouco maior que o texto corrido */
-.end-mark strong { display: block; color: var(--accent); font-size: 1.1em; line-height: 1.25; font-weight: 700; }
+/* Fim do texto: "Fim da matéria" logo depois da última palavra, no mesmo estilo das frases (span.s),
+   só na cor de destaque; ↓ no fim faz a marca "quicar" */
+.s.end { display: inline-block; color: var(--accent); }
 .recs-anchor { margin-top: 40px; }   /* respiro entre "Fim da matéria" e as recomendadas */
 
 /* ---------- Notícias recomendadas ----------
@@ -192,8 +191,7 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .rcard .rtime { margin-top: 10px; font: 500 32px/1.25 var(--font); color: var(--muted); }
-.end-mark.bump { animation: end-bump .5s var(--ease); }
-.end-mark.bump strong { animation: end-flash 1s ease; }
+.s.end.bump { animation: end-bump .5s var(--ease), end-flash 1s ease; }
 @keyframes end-bump { 30% { transform: translateY(-14px); } }
 @keyframes end-flash { 0%, 45% { color: #fff; } }
 
@@ -463,14 +461,17 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     const anchor = useRef(null), layer = useRef(null), inner = useRef(null);
     // Camada das recomendadas: mesma faixa vertical da área de leitura, deslocada junto com a rolagem.
     // O bloco .recs-anchor no fim do texto tem a altura dela, então a rolagem chega até o fim dela.
+    const recsY = (a, i) => a.offsetTop + a.offsetHeight - i.offsetHeight;   // recomendadas na base do bloco reservado
     const syncLayer = () => {
       const e = el.current, a = anchor.current, l = layer.current, i = inner.current;
       if (!e || !a || !l || !i) return;
       const w = e.parentNode;   // .reader-wrap
       l.style.top = w.offsetTop + 'px'; l.style.height = w.offsetHeight + 'px';
-      const hgt = i.offsetHeight + 'px';
+      // Pelo menos a altura da área de leitura: no fim da página o texto (e o "Fim da matéria") já passou
+      // por baixo do hero, e as recomendadas ficam encostadas na base
+      const hgt = Math.max(i.offsetHeight, e.clientHeight) + 'px';
       if (a.style.height !== hgt) a.style.height = hgt;
-      i.style.transform = 'translateY(' + (a.offsetTop - e.scrollTop) + 'px)';
+      i.style.transform = 'translateY(' + (recsY(a, i) - e.scrollTop) + 'px)';
     };
     useLayoutEffect(syncLayer);
     useEffect(() => { addEventListener('resize', syncLayer); return () => removeEventListener('resize', syncLayer); }, []);
@@ -495,16 +496,16 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     // (80 px no topo quando já rolou; 150 px na base, que somem no fim da rolagem — .at-end)
     const bottomFade = (top) => top >= maxScroll() - 4 ? 0 : 150;
     const endVisible = () => {
-      const e = el.current, m = endMark.current, s = m && m.querySelector('strong');
-      if (!s) return false;
-      const y = m.offsetTop + s.offsetTop, top = e.scrollTop;
+      const e = el.current, m = endMark.current;
+      if (!m) return false;
+      const top = e.scrollTop;
       // inteiro e nítido na tela, ou já passou dele (rolando pelas notícias recomendadas)
-      return y + s.offsetHeight <= top + e.clientHeight - bottomFade(top);
+      return m.offsetTop + m.offsetHeight <= top + e.clientHeight - bottomFade(top);
     };
     const measure = () => {
       const top = el.current.scrollTop, max = maxScroll(), t = top < 4, end = top >= max - 4;
       setEdges(p => p.top === t && p.end === end ? p : { top: t, end });
-      // Barra de progresso vai até o fim do div.end-mark (o que vem depois não conta):
+      // Barra de progresso vai até o "Fim da matéria" (o que vem depois não conta):
       // 100% quando a base do "Fim da matéria" sai do degradê da base da leitura
       const m = endMark.current, h = el.current.clientHeight;
       const endMax = m ? Math.min(max, m.offsetTop + m.offsetHeight - (h - 150)) : max;
@@ -513,10 +514,12 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       const a = anchor.current, rw = inner.current && inner.current.querySelector('.rail-wrap');
       let railVisible = false;
       if (a && rw) {
-        const tr = rw.firstChild, y = a.offsetTop - top + rw.offsetTop + tr.offsetTop + 12, yb = y + tr.offsetHeight - 24;
+        const tr = rw.firstChild, y = recsY(a, inner.current) - top + rw.offsetTop + tr.offsetTop + 12, yb = y + tr.offsetHeight - 24;
         railVisible = y >= (top < 4 ? 0 : 80) && yb <= h - bottomFade(top);
       }
-      onProgress(ev || endMax <= 0 ? 1 : clamp(top / endMax, 0, 1), firstVisible(), top, ev, railVisible);
+      // Último span.s ("Fim da matéria") já passou por baixo do hero (acima do topo da área de leitura)
+      const endPassed = !!m && m.offsetTop + m.offsetHeight <= top;
+      onProgress(ev || endMax <= 0 ? 1 : clamp(top / endMax, 0, 1), firstVisible(), top, ev, railVisible, endPassed);
     };
 
     api.current = {
@@ -526,6 +529,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       press: (dir, repeat) => { touched(); toTopIntent.current = false; scroller.current.press(dir, repeat); },
       release: () => scroller.current.release(),
       toTop: () => { touched(); toTopIntent.current = true; scroller.current.to(0); },
+      toEnd: () => { touched(); scroller.current.to(maxScroll()); },
       top: () => el.current.scrollTop,
       to: (y) => { touched(); scroller.current.to(y); },
 
@@ -574,9 +578,10 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       <div class="prose" style=${{ '--read-size': sizePx + 'px' }}>
         ${DOC.map((b, bi) => {
           const kids = b.ids.map((id, k) => html`${k > 0 ? ' ' : ''}<span data-s=${id} class=${'s' + (idx === id ? ' cur' : '')}>${SENTENCES[id]}</span>`);
-          return b.type === 'h' ? html`<h2 key=${bi}>${kids}</h2>` : html`<p key=${bi}>${kids}</p>`;
+          // Depois da última palavra: "Fim da matéria" como mais um span.s (sem data-s: fora do áudio e da contagem)
+          const end = bi === DOC.length - 1 && html` <span ref=${endMark} class="s end">Fim da matéria</span>`;
+          return b.type === 'h' ? html`<h2 key=${bi}>${kids}${end}</h2>` : html`<p key=${bi}>${kids}${end}</p>`;
         })}
-        <div ref=${endMark} class="end-mark"><strong>Fim da matéria</strong></div>
         <div ref=${anchor} class="recs-anchor" aria-hidden="true"></div>
       </div>
       <div ref=${live} class="sr" role="status" aria-live="polite"></div>
@@ -723,16 +728,21 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     // Toque rola um pouco; segurando, rola contínuo até soltar (keyup, tratado abaixo).
     // No topo do texto, um toque novo em ↑ segue a navegação; segurando, a rolagem só para no topo.
 
-    // Cards recomendados: quando a linha fica inteira na tela, o foco vai sozinho para o 1º card
+    // Cards recomendados: quando o "Fim da matéria" (último span.s) passa por baixo do hero, a rolagem
+    // desce até o fim da página e o foco vai para o 1º card
     // (não com áudio tocando nem com o diálogo aberto, e não se o foco já está num card)
     const [railVisible, setRailVisible] = useState(false);
     const [recsFocused, setRecsFocused] = useState(false);   // foco num card recomendado
-    const railSeen = useRef(false);
+    const [endPassed, setEndPassed] = useState(false);
+    const endPassedSeen = useRef(null);   // null: primeira medição não conta (posição salva já depois do fim)
     useEffect(() => {
-      const was = railSeen.current; railSeen.current = railVisible;
+      const was = endPassedSeen.current; endPassedSeen.current = endPassed;
       const k = getCurrentFocusKey() || '';
-      if (!was && railVisible && !active && !modal && !k.startsWith('REC_') && RECS.length) setFocus('REC_' + RECS[0].id);
-    }, [railVisible]);
+      if (was === false && endPassed && !active && !modal && !k.startsWith('REC_') && RECS.length) {
+        reader.current.toEnd();
+        setFocus('REC_' + RECS[0].id);
+      }
+    }, [endPassed]);
     // Dos cards, ↑ e ↓ levam ao "Ler novamente" da barra (↑ também sobe um pouco o texto)
     const toReread = () => setFocus(doesFocusableExist('BTN_TOP') ? 'BTN_TOP' : 'BTN_LISTEN');
     const recsUp = () => { toReread(); reader.current.press(-1, false); };
@@ -813,8 +823,9 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       a.classList.toggle('collapsed', was);
       return (gap.current = Math.max(0, open - shut));
     };
-    const onProgress = (pct, first, top, end, railVisible) => {
+    const onProgress = (pct, first, top, end, railVisible, endPassed) => {
       setRailVisible(railVisible);
+      setEndPassed(endPassed);
       const c = collapsedRef.current;
       if (!c && top >= gap.current + 24) setCollapsed(true);
       else if (c && top < 8) setCollapsed(false);
