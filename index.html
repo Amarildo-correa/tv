@@ -63,7 +63,7 @@
   --text-title: #FFFFFF;
   --text-body: #EDEDED;
   --text-meta: #B8B8B8;
-  --accent: #6E9CFF; /* azul padrão do Read on TV: 7:1 sobre o fundo e 2,7:1 contra o branco */
+  --accent: #8AB4F8; /* azul padrão do Read on TV: 8,9:1 sobre o fundo #121212 */
   --accent-ink: #0B1430;
   --focus: #FFFFFF;
   --on-focus: #000000;
@@ -127,7 +127,7 @@ body {
   height: 100%;
   overflow: hidden;
   background:
-    radial-gradient(70rem 32rem at 100% 0%, rgba(110, 156, 255, .09), rgba(110, 156, 255, 0) 70%) no-repeat,
+    radial-gradient(70rem 32rem at 100% 0%, rgba(138, 180, 248, .09), rgba(138, 180, 248, 0) 70%) no-repeat,
     var(--bg);
   color: var(--text-body);
   font-family: var(--font-body);
@@ -290,8 +290,8 @@ html:not(.pointer) .feature:focus .feature-clip { outline-color: var(--focus); }
 .feature-clip::before {
   content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(32% 7% at 0% 100%, rgba(110, 156, 255, .22) 0%, rgba(110, 156, 255, 0) 100%),
-    linear-gradient(to right, rgba(110, 156, 255, .26) 0%, rgba(110, 156, 255, .09) 2.2%, rgba(110, 156, 255, 0) 5%);
+    radial-gradient(32% 7% at 0% 100%, rgba(138, 180, 248, .22) 0%, rgba(138, 180, 248, 0) 100%),
+    linear-gradient(to right, rgba(138, 180, 248, .26) 0%, rgba(138, 180, 248, .09) 2.2%, rgba(138, 180, 248, 0) 5%);
   transition: opacity var(--dur) ease;
 }
 html:not(.pointer) .feature:focus .feature-clip::before { opacity: 0; }
@@ -452,6 +452,7 @@ html:not(.pointer) .wx:focus .wx-msg { margin-right: 0; }
 .n-time { font-size: var(--size-meta); line-height: 1.25; color: var(--text-meta); }
 .card .n-tag { font-size: var(--size-card-tag); }
 .card .n-title { font-size: var(--size-card-rail-title); }
+h3.n-title { color: var(--text-title); } /* títulos dos cards em branco; o destaque (h2) segue no azul */
 .card .n-time { font-size: var(--size-card-time); }
 
 /* Tela de leitura do post (post.html), aberta num iframe de tela inteira sobre o app */
@@ -683,7 +684,7 @@ body.has-overlay .mode-sheet { bottom: 13rem; }
   flex: 0 0 5.5rem; height: 5.5rem; margin-right: 1.75rem;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(110, 156, 255, .16); color: var(--accent);
+  background: rgba(138, 180, 248, .16); color: var(--accent);
 }
 .mode-icon .ms { font-size: 3.25rem; }
 .mode-text { display: flex; flex-direction: column; min-width: 0; white-space: nowrap; }
@@ -721,7 +722,7 @@ html.unsupported .unsupported-screen {
 .unsupported-screen .us-icons { display: flex; align-items: center; margin-bottom: 1.5rem; }
 .unsupported-screen .us-icons span {
   width: 4rem; height: 4rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  background: rgba(110, 156, 255, .16); color: var(--accent);
+  background: rgba(138, 180, 248, .16); color: var(--accent);
 }
 .unsupported-screen .us-icons span + span { margin-left: .75rem; }
 .unsupported-screen .us-icons .ms { font-size: 2.25rem; }
