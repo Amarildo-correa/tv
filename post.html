@@ -112,7 +112,8 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 .collapsed .reader-wrap { margin-top: 30px; }
 
 .reader {
-  position: relative; flex: 0 0 1260px; box-sizing: border-box; overflow: hidden; padding: 6px 28px 0 0;
+  /* padding/margem à esquerda: folga para o anel de foco do "Ler novamente" (dentro do texto) não ser cortado */
+  position: relative; flex: 0 0 1280px; box-sizing: border-box; overflow: hidden; padding: 6px 28px 0 20px; margin-left: -20px;
   --mask: linear-gradient(#000 calc(100% - 150px), transparent);
   -webkit-mask-image: var(--mask); mask-image: var(--mask);
 }
@@ -148,12 +149,12 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 .end-mark { position: relative; margin-top: 1.4em; padding-top: .8em; border-top: 2px solid var(--line); line-height: 1.35; color: var(--muted); }
 /* "Fim da matéria" sempre em destaque: azul e um pouco maior que o texto corrido */
 .end-mark strong { display: block; color: var(--accent); font-size: 1.1em; line-height: 1.25; font-weight: 700; }
-.recs { margin-top: 1.2em; }   /* Cards de notícias recomendadas */
-/* Lembrete visível enquanto os cards não existem: caixa tracejada com o comentário */
-.recs-todo {
-  display: block; padding: 28px 32px; border: 2px dashed rgba(233,236,242,.28); border-radius: 20px;
-  font: 500 30px/1.3 ui-monospace, "Roboto Mono", Menlo, Consolas, monospace; color: var(--muted);
-}
+/* "Ler novamente" fora do div.end-mark, logo abaixo dele; aparece com ↓ depois do fim e some com ↑ */
+.reread { margin-top: 36px; transition: opacity .25s ease; }
+.reread.closing { opacity: 0; }
+/* Lembrete dos cards de notícias recomendadas: uma linha de texto */
+.recs { margin: 1.2em 0 0; font: 500 30px/1.3 ui-monospace, "Roboto Mono", Menlo, Consolas, monospace; color: var(--muted); }
+.reread + .recs { margin-top: 56px; }   /* folga para a sombra do botão focado */
 .end-mark.bump { animation: end-bump .5s var(--ease); }
 .end-mark.bump strong { animation: end-flash 1s ease; }
 @keyframes end-bump { 30% { transform: translateY(-14px); } }
@@ -413,7 +414,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   }
 
   // Área de leitura. Expõe firstVisible / press / release / atTop / toTop pelo objeto `api`.
-  function Reader({ sizePx, idx, api, onProgress, userScrollAt }) {
+  function Reader({ sizePx, idx, api, onProgress, userScrollAt, reread, onReread, onRereadArrow }) {
     const el = useRef(null), pct = useRef(load().scroll || 0), line = useRef(0), timers = useRef({});
     const [edges, setEdges] = useState({ top: true, end: false });
     const maxScroll = () => el.current.scrollHeight - el.current.clientHeight;
@@ -447,7 +448,11 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     const measure = () => {
       const top = el.current.scrollTop, max = maxScroll(), t = top < 4, end = top >= max - 4;
       setEdges(p => p.top === t && p.end === end ? p : { top: t, end });
-      onProgress(max <= 0 ? 1 : top / max, firstVisible(), top, endVisible());
+      // Barra de progresso vai até o fim do div.end-mark (o que vem depois não conta):
+      // 100% quando a base do "Fim da matéria" sai do degradê da base da leitura
+      const m = endMark.current, h = el.current.clientHeight;
+      const endMax = m ? m.offsetTop + m.offsetHeight - (h - 150) : max;
+      onProgress(endMax <= 0 ? 1 : clamp(top / endMax, 0, 1), firstVisible(), top, endVisible());
     };
 
     api.current = {
@@ -457,6 +462,10 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       press: (dir, repeat) => { touched(); toTopIntent.current = false; scroller.current.press(dir, repeat); },
       release: () => scroller.current.release(),
       toTop: () => { touched(); toTopIntent.current = true; scroller.current.to(0); },
+      top: () => el.current.scrollTop,
+      to: (y) => { touched(); scroller.current.to(y); },
+      toEnd: () => { touched(); scroller.current.to(maxScroll()); },
+      bump: () => bumpEnd(1),
       // Compensa a troca do hero. Se a pessoa pediu o topo ("Topo" / "Ler novamente"), segue até o início
       // depois que o hero abre, em vez de parar na posição compensada.
       shift: (d) => {
@@ -503,6 +512,9 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
           return b.type === 'h' ? html`<h2 key=${bi}>${kids}</h2>` : html`<p key=${bi}>${kids}</p>`;
         })}
         <div ref=${endMark} class="end-mark"><strong>Fim da matéria</strong></div>
+        ${reread && html`<div class=${'reread' + (reread === 'closing' ? ' closing' : '')}>
+          <${TvButton} focusKey="BTN_REREAD" icon="arrow_upward" label="Ler novamente" ariaLabel="Ler novamente desde o início" onPress=${onReread} onArrow=${onRereadArrow} />
+        </div>`}
         <${Recommended} />
       </div>
       <div ref=${live} class="sr" role="status" aria-live="polite"></div>
@@ -512,9 +524,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   // Bloco logo depois de "Fim da matéria" (div.end-mark), já presente na tela
   function Recommended() {
     // Aqui ficará Cards de notícias recomendadas.
-    return html`<section class="recs" aria-hidden="true">
-      <code class="recs-todo">// Aqui ficará Cards de notícias recomendadas.</code>
-    </section>`;
+    return html`<p class="recs" aria-hidden="true">// Aqui ficará Cards de notícias recomendadas.</p>`;
   }
 
   // Tempo restante, calculado pelas palavras que faltam a partir do ponto real de leitura
@@ -599,9 +609,39 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     // Nos botões, ↑ ↓ rolam o texto e o foco fica no lugar; ← → navegam.
     // Toque rola um pouco; segurando, rola contínuo até soltar (keyup, tratado abaixo).
     // No topo do texto, um toque novo em ↑ segue a navegação; segurando, a rolagem só para no topo.
+    // "Ler novamente" no texto: com "Fim da matéria" já nítido, um ↓ mostra o botão abaixo dele (com foco)
+    // e rola até o fim; ↑ esconde o botão, volta a rolagem para onde estava e devolve o foco à barra.
+    const [reread, setReread] = useState(false);   // false | true | 'closing'
+    const rereadFrom = useRef(0), rereadTimer = useRef();
+    const showReread = () => {
+      clearTimeout(rereadTimer.current);
+      if (reread !== true) rereadFrom.current = reader.current.top();
+      setReread(true);
+    };
+    const hideReread = (focusKey) => {
+      if (!reread) return;
+      setFocus(focusKey || (showTop ? 'BTN_TOP' : 'BTN_LISTEN'));
+      setReread('closing');
+      reader.current.to(rereadFrom.current);   // anima de volta antes de tirar o botão: o texto não pula
+      clearTimeout(rereadTimer.current);
+      rereadTimer.current = setTimeout(() => setReread(false), 320);
+    };
+    useEffect(() => {
+      if (reread !== true) return;
+      reader.current.toEnd();
+      setFocus('BTN_REREAD');
+    }, [reread]);
+    const rereadArrow = (dir) => {
+      if (dir === 'up') hideReread();
+      else if (dir === 'down') reader.current.bump();
+      return false;
+    };
+    const rereadPress = () => { clearTimeout(rereadTimer.current); setReread(false); goTop(); };
+
     const actionArrow = (dir, _props, details) => {
       if (dir !== 'up' && dir !== 'down') return true;
       const repeat = !!(details && details.pressedKeys && details.pressedKeys[dir] > 1);
+      if (dir === 'down' && !repeat && atEnd && !reread) { learnScroll(); showReread(); return false; }
       if (dir === 'up' && !repeat && reader.current.atTop()) return true;
       learnScroll();
       reader.current.press(dir === 'down' ? 1 : -1, repeat);
@@ -702,6 +742,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     useEffect(() => {
       const was = endSeen.current; endSeen.current = atEnd;
       if (was === false && atEnd && !active && !modal && reader.current.canScroll()) setTimeout(() => setFocus('BTN_TOP'), 0);
+      if (!atEnd && reread === true) hideReread();   // saiu do fim por outro caminho (ex.: roda do mouse)
     }, [atEnd]);
     useEffect(() => {
       const onFs = () => setIsFs(!!FS_DOC.fullscreenElement);
@@ -735,7 +776,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     const buttons = [
       btn('BTN_BACK', 'arrow_back', { variant: 'icon back', ariaLabel: 'Voltar', onPress: openModal }),
       // Topo antes de "Ouvir texto"; no fim da matéria mostra "Ler novamente"
-      showTop && (atEnd
+      showTop && (atEnd && !reread
         ? btn('BTN_TOP', 'arrow_upward', { label: 'Ler novamente', ariaLabel: 'Ler novamente desde o início', onPress: goTop })
         : btn('BTN_TOP', 'arrow_upward', { variant: 'icon', ariaLabel: 'Voltar ao topo do texto', onPress: goTop })),
       active && btn('PL_PREV', 'skip_previous', { variant: 'icon', ariaLabel: 'Frase anterior', onPress: () => step(-1) }),
@@ -769,7 +810,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
 
       <main class="body">
         <div class="reader-wrap">
-          <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt} />
+          <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt}
+            reread=${reread} onReread=${rereadPress} onRereadArrow=${rereadArrow} />
           <div class="track" aria-hidden="true"><span class="fill" style=${{ height: prog.pct * 100 + '%' }}></span></div>
           <div class="side">
             <${ReadingStats} done=${atEnd} from=${Math.max(prog.first, speech.idx)} />
