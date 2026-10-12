@@ -94,10 +94,12 @@
   --head-gap: 1rem;   /* título → cards */
   --row-h: calc((var(--vp-h) - var(--row-gap)) / 1.5);
   --card-h: calc(var(--row-h) - var(--head-h) - var(--head-gap));
-  /* Texto abaixo da imagem: tag (1.5 × 1.25) + .375 + título em 2 linhas (2.25 × 1.25 × 2) + .5
-     + resumo em 3 linhas (2.125 × 1.3 × 3) + .625 + data (1.5 × 1.25) */
-  --size-excerpt: 2.125rem; /* 34 px em 1080p: quase o tamanho do título (36 px) */
-  --card-txt: 19.1625rem;
+  /* Cards dos rails: só tag, título e data, em tamanhos maiores que no destaque */
+  --size-card-tag: 2rem;        /* 32 px em 1080p */
+  --size-card-rail-title: 2.75rem; /* 44 px em 1080p */
+  --size-card-time: 2rem;       /* 32 px em 1080p */
+  /* Texto abaixo da imagem: tag (2 × 1.25) + .375 + título em 2 linhas (2.75 × 1.25 × 2) + .625 + data (2 × 1.25) */
+  --card-txt: 12.875rem;
   /* A tag começa sobre a parte da imagem que já sumiu no degradê */
   --card-overlap: 1.5rem;
 
@@ -437,13 +439,8 @@ html:not(.pointer) .wx:focus .wx-msg { margin-right: 0; }
     rgba(var(--fade), .5) 76%, rgba(var(--fade), .78) 88%, rgba(var(--fade), 1) 100%);
 }
 .card .txt { position: relative; z-index: 1; flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; margin-top: calc(-1 * var(--card-overlap)); padding: 0 .25rem; }
-/* Texto da notícia: componente único usado pelos cards dos rails e pelo destaque (tag, título, resumo, data) */
+/* Texto da notícia: componente único usado pelos cards dos rails e pelo destaque (tag, título, data) */
 .n-tag { font-size: var(--size-meta); line-height: 1.25; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
-.n-excerpt {
-  margin: 0;
-  font-size: var(--size-excerpt); line-height: 1.3; font-weight: 600; color: var(--text-title);
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;
-}
 .n-title {
   margin: 0;
   font-family: var(--font-title); font-weight: 700;
@@ -453,6 +450,9 @@ html:not(.pointer) .wx:focus .wx-msg { margin-right: 0; }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .n-time { font-size: var(--size-meta); line-height: 1.25; color: var(--text-meta); }
+.card .n-tag { font-size: var(--size-card-tag); }
+.card .n-title { font-size: var(--size-card-rail-title); }
+.card .n-time { font-size: var(--size-card-time); }
 
 /* Tela de leitura do post (post.html), aberta num iframe de tela inteira sobre o app */
 .overlay.post-ov { padding: 0; overflow: hidden; background: #050507; }
@@ -585,7 +585,7 @@ html:not(.pointer) .back:focus { background: var(--focus); color: var(--on-focus
 .wx > .wx-strip { margin-top: 1.5rem; }
 .wx > .cta-wrap { margin-top: 1.5rem; }
 .top > .clock { margin-left: auto; }
-.card .txt > .n-time { margin-top: auto; }
+.card .txt > .n-time { margin-top: auto; padding-top: .625rem; }
 .fc-top > .fc-title { margin-left: 2.25rem; }
 .fc-top > .upd { margin-left: auto; }
 .now-main > .now-desc { margin-left: 2.5rem; }
@@ -919,12 +919,10 @@ html.unsupported .unsupported-screen {
     return '<div class="media' + (cls ? ' ' + cls : '') + '"><div class="ph"><span class="ms" aria-hidden="true">' + CATS[s.cat] +
       '</span></div><img alt="" decoding="async"' + (card ? ' loading="lazy"' : '') + ' src="' + src + '"></div>';
   }
-  /* Texto da notícia (tag, título, resumo e data): o mesmo nos cards dos rails e no destaque */
-  /* noExcerpt: o destaque (.feature) não mostra o resumo, só editoria, título e hora */
-  function newsText(s, heading, noExcerpt) {
+  /* Texto da notícia (tag, título e data): o mesmo nos cards dos rails e no destaque */
+  function newsText(s, heading) {
     return '<span class="n-tag">' + esc(s.cat) + '</span>' +
       '<' + heading + ' class="n-title">' + esc(s.title) + '</' + heading + '>' +
-      (noExcerpt ? '' : '<span class="n-excerpt">' + esc(s.body[0]) + '</span>') +
       '<span class="n-time">' + ago(s.mins) + '</span>';
   }
   function guardImages(scope) {
@@ -979,7 +977,7 @@ html.unsupported .unsupported-screen {
           '<article class="feature" tabindex="0" role="button" data-id="' + hero.id + '" aria-label="Destaque: ' + esc(hero.title) + '. Pressione OK para ler a matéria completa">' +
             '<div class="feature-clip">' + mediaHTML(hero) + '</div>' +
             '<div class="feature-text">' +
-              '<div class="n-text">' + newsText(hero, 'h2', true) + '</div>' +
+              '<div class="n-text">' + newsText(hero, 'h2') + '</div>' +
               '<div class="cta-wrap" aria-hidden="true"><div><span class="tvbtn"><span class="ms" aria-hidden="true">local_library</span>Leia a matéria completa</span></div></div>' +
             '</div>' +
           '</article>' +
