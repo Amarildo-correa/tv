@@ -156,6 +156,7 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 .s.end { display: inline-block; color: var(--accent); }
 .recs-anchor { margin-top: 56px; }   /* espaço entre os botões do fim e o rail de recomendadas */
 /* Voltar e Ler novamente logo abaixo da linha do "Fim da matéria", rolando junto com o texto */
+.end-actions.rail-focused [data-k="BTN_MORE"] { visibility: hidden; }   /* foco no rail: "Mais notícias" some (o lugar fica) */
 .end-actions { display: flex; align-items: center; gap: 28px; margin-top: 36px; }
 
 /* ---------- Notícias recomendadas ----------
@@ -462,7 +463,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   }
 
   // Área de leitura. Expõe firstVisible / press / release / atTop / toTop pelo objeto `api`.
-  function Reader({ sizePx, idx, api, onProgress, userScrollAt, onRecsUp, onRecsDown, onRecsActive, onEndBack, onReread, onEndArrow, onMore, endZone }) {
+  function Reader({ sizePx, idx, api, onProgress, userScrollAt, onRecsUp, onRecsDown, onRecsActive, onEndBack, onReread, onEndArrow, onMore, endZone, railFocused }) {
     const { Fragment } = React;
     const el = useRef(null), pct = useRef(load().scroll || 0), line = useRef(0), timers = useRef({});
     const [edges, setEdges] = useState({ top: true, end: false });
@@ -619,7 +620,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
           const end = bi === DOC.length - 1 && html` <span ref=${endMark} class="s end">Fim da matéria</span>`;
           return b.type === 'h' ? html`<h2 key=${bi}>${kids}${end}</h2>` : html`<p key=${bi}>${kids}${end}</p>`;
         })}
-        <div class="end-actions">
+        <div class=${'end-actions' + (railFocused ? ' rail-focused' : '')}>
           <${TvButton} focusKey="BTN_END_BACK" icon="arrow_back" variant="icon" ariaLabel="Voltar" onPress=${onEndBack} onArrow=${onEndArrow} onFocus=${() => api.current.revealEnd()} />
           <${TvButton} focusKey="BTN_REREAD" icon="arrow_upward" label="Ler novamente" ariaLabel="Ler novamente desde o início" onPress=${onReread} onArrow=${onEndArrow} onFocus=${() => api.current.revealEnd()} />
           <${TvButton} focusKey="BTN_MORE" icon="arrow_downward" label="Mais notícias" ariaLabel="Mais notícias: ir para as notícias recomendadas" onPress=${onMore} onArrow=${onEndArrow} onFocus=${() => api.current.revealEnd()} />
@@ -793,7 +794,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       const k = getCurrentFocusKey();
       // ← → entre Voltar, Ler novamente e Mais notícias
       const i = END_KEYS.indexOf(k);
-      if (dir === 'right') { if (i >= 0 && i < END_KEYS.length - 1) setFocus(END_KEYS[i + 1]); return false; }
+      if (dir === 'right') { if (i >= 0 && i < END_KEYS.length - 1 && !(recsFocused && END_KEYS[i + 1] === 'BTN_MORE')) setFocus(END_KEYS[i + 1]); return false; }
       if (dir === 'left') { if (i > 0) setFocus(END_KEYS[i - 1]); return false; }
       learnScroll();
       const repeat = !!(details && details.pressedKeys && details.pressedKeys[dir] > 1);
@@ -995,7 +996,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
         <div class="reader-wrap">
           <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt} endZone=${dockOff}
             onRecsUp=${recsUp} onRecsDown=${recsDown} onRecsActive=${setRecsFocused}
-            onEndBack=${openModal} onReread=${goTop} onEndArrow=${endArrow} onMore=${goMore} />
+            onEndBack=${openModal} onReread=${goTop} onEndArrow=${endArrow} onMore=${goMore} railFocused=${recsFocused} />
           <div class="track" aria-hidden="true"><span class="fill" style=${{ height: prog.pct * 100 + '%' }}></span></div>
           <div class="side">
             <${ReadingStats} done=${atEnd} from=${Math.max(prog.first, speech.idx)} />
