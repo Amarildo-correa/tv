@@ -476,6 +476,15 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       if (!e || !a || !l || !i) return;
       const w = e.parentNode;   // .reader-wrap
       l.style.top = w.offsetTop + 'px'; l.style.height = w.offsetHeight + 'px';
+      // Espaço extra na base das recomendadas: no fim da rolagem (foco no rail) a última linha do texto,
+      // com o "Fim da matéria", já passou por baixo do hero e não aparece mais
+      const r = i.firstChild, m = endMark.current;
+      if (r && m) {
+        const cur = parseFloat(r.style.paddingBottom) || SAFE_Y;
+        const max = e.scrollHeight - e.clientHeight, endBottom = m.offsetTop + m.offsetHeight;
+        const want = Math.max(SAFE_Y, Math.round(cur + endBottom - max + 8));
+        if (want !== cur) r.style.paddingBottom = want + 'px';
+      }
       const hgt = i.offsetHeight + 'px';   // só a altura das recomendadas, sem espaço extra em cima
       if (a.style.height !== hgt) a.style.height = hgt;
       i.style.transform = 'translateY(' + (recsY(a, i) - e.scrollTop) + 'px)';
