@@ -112,8 +112,7 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 .collapsed .reader-wrap { margin-top: 30px; }
 
 .reader {
-  /* padding/margem à esquerda: folga para o anel de foco do "Ler novamente" (dentro do texto) não ser cortado */
-  position: relative; flex: 0 0 1280px; box-sizing: border-box; overflow: hidden; padding: 6px 28px 0 20px; margin-left: -20px;
+  position: relative; flex: 0 0 1260px; box-sizing: border-box; overflow: hidden; padding: 6px 28px 0 0;
   --mask: linear-gradient(#000 calc(100% - 150px), transparent);
   -webkit-mask-image: var(--mask); mask-image: var(--mask);
 }
@@ -155,7 +154,6 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
   display: block; padding: 28px 32px; border: 2px dashed rgba(233,236,242,.28); border-radius: 20px;
   font: 500 30px/1.3 ui-monospace, "Roboto Mono", Menlo, Consolas, monospace; color: var(--muted);
 }
-.end-mark .tvbtn { margin-top: 32px; }   /* "Ler novamente" logo abaixo de "Fim da matéria" */
 .end-mark.bump { animation: end-bump .5s var(--ease); }
 .end-mark.bump strong { animation: end-flash 1s ease; }
 @keyframes end-bump { 30% { transform: translateY(-14px); } }
@@ -415,7 +413,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   }
 
   // Área de leitura. Expõe firstVisible / press / release / atTop / toTop pelo objeto `api`.
-  function Reader({ sizePx, idx, api, onProgress, userScrollAt, onReread, onRereadArrow }) {
+  function Reader({ sizePx, idx, api, onProgress, userScrollAt }) {
     const el = useRef(null), pct = useRef(load().scroll || 0), line = useRef(0), timers = useRef({});
     const [edges, setEdges] = useState({ top: true, end: false });
     const maxScroll = () => el.current.scrollHeight - el.current.clientHeight;
@@ -496,10 +494,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
           const kids = b.ids.map((id, k) => html`${k > 0 ? ' ' : ''}<span data-s=${id} class=${'s' + (idx === id ? ' cur' : '')}>${SENTENCES[id]}</span>`);
           return b.type === 'h' ? html`<h2 key=${bi}>${kids}</h2>` : html`<p key=${bi}>${kids}</p>`;
         })}
-        <div ref=${endMark} class="end-mark">
-          <strong>Fim da matéria</strong>
-          <${TvButton} focusKey="BTN_REREAD" icon="arrow_upward" label="Ler novamente" ariaLabel="Ler novamente desde o início" onPress=${onReread} onArrow=${onRereadArrow} />
-        </div>
+        <div ref=${endMark} class="end-mark"><strong>Fim da matéria</strong></div>
         <${Recommended} />
       </div>
       <div ref=${live} class="sr" role="status" aria-live="polite"></div>
@@ -590,8 +585,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       speech.setRate(RATES[(RATES.indexOf(speech.rate) + 1) % RATES.length]);
       if (playing) speech.speakFrom(speech.idxRef.current);
     };
-    // "Topo" some ao chegar no início: o foco passa para o botão à esquerda dele
-    const goTop = () => { reader.current.toTop(); setFocus(active ? 'PL_NEXT' : 'BTN_LISTEN'); };
+    // "Topo" some ao chegar no início: o foco passa para o botão à direita dele
+    const goTop = () => { reader.current.toTop(); setFocus(active ? 'PL_PREV' : 'BTN_LISTEN'); };
     // Nos botões, ↑ ↓ rolam o texto e o foco fica no lugar; ← → navegam.
     // Toque rola um pouco; segurando, rola contínuo até soltar (keyup, tratado abaixo).
     // No topo do texto, um toque novo em ↑ segue a navegação; segurando, a rolagem só para no topo.
@@ -601,21 +596,6 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       if (dir === 'up' && !repeat && reader.current.atTop()) return true;
       learnScroll();
       reader.current.press(dir === 'down' ? 1 : -1, repeat);
-      return false;
-    };
-
-    // "Ler novamente" fica no fim do texto: ↓ desce para a barra de ações; ↑ volta a rolar o texto
-    // e o foco passa para a barra (o botão sairia da tela); ← → não têm vizinho ali
-    // ↓ segurado, ou tocado logo depois do foco chegar sozinho (a pessoa ainda estava descendo o texto),
-    // não tira o foco do botão: só faz a marca do fim quicar.
-    const rereadAt = useRef(0);
-    const rereadArrow = (dir, props, details) => {
-      if (dir === 'down') {
-        const held = !!(details && details.pressedKeys && details.pressedKeys.down > 1);
-        if (held || Date.now() - rereadAt.current < 1000) { reader.current.press(1, held); return false; }
-        setFocus('BTN_LISTEN'); return false;
-      }
-      if (dir === 'up') { setFocus('BTN_TOP'); return actionArrow(dir, props, details); }
       return false;
     };
 
@@ -706,18 +686,13 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     }, [collapsed]);
 
     useEffect(() => { setFocus('BTN_LISTEN'); }, []);
-    // Ao chegar no fim do texto rolando, o foco vai para "Ler novamente" (botão do topo).
+    // Ao chegar no fim do texto rolando, o foco vai para o botão do topo, que vira "Ler novamente".
     // Não na primeira medição (texto que cabe na tela ou posição salva já no fim), nem com áudio tocando
     // ou com o diálogo de saída aberto, para não tirar o foco de onde a pessoa está.
     const endSeen = useRef(null);
     useEffect(() => {
       const was = endSeen.current; endSeen.current = atEnd;
-      if (was === false && atEnd && !active && !modal && reader.current.canScroll()) {
-        rereadAt.current = Date.now();
-        setTimeout(() => setFocus('BTN_REREAD'), 0);
-      }
-      // Saiu do fim (ex.: roda do mouse) com o foco no "Ler novamente": o botão sai da tela, o foco vai para a barra
-      if (!atEnd && getCurrentFocusKey() === 'BTN_REREAD') setFocus(showTop ? 'BTN_TOP' : 'BTN_LISTEN');
+      if (was === false && atEnd && !active && !modal && reader.current.canScroll()) setTimeout(() => setFocus('BTN_TOP'), 0);
     }, [atEnd]);
     useEffect(() => {
       const onFs = () => setIsFs(!!FS_DOC.fullscreenElement);
@@ -750,12 +725,15 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     const sizeLabel = 'Tamanho do texto: ' + SIZES[sizeIdx].label;
     const buttons = [
       btn('BTN_BACK', 'arrow_back', { variant: 'icon back', ariaLabel: 'Voltar', onPress: openModal }),
+      // Topo antes de "Ouvir texto"; no fim da matéria mostra "Ler novamente"
+      showTop && (atEnd
+        ? btn('BTN_TOP', 'arrow_upward', { label: 'Ler novamente', ariaLabel: 'Ler novamente desde o início', onPress: goTop })
+        : btn('BTN_TOP', 'arrow_upward', { variant: 'icon', ariaLabel: 'Voltar ao topo do texto', onPress: goTop })),
       active && btn('PL_PREV', 'skip_previous', { variant: 'icon', ariaLabel: 'Frase anterior', onPress: () => step(-1) }),
       active
         ? btn('BTN_LISTEN', playing ? 'pause' : 'play_arrow', { variant: 'icon primary', ariaLabel: playing ? 'Pausar leitura' : 'Continuar leitura', onPress: listen })
         : btn('BTN_LISTEN', 'headphones', { label: 'Ouvir texto', onPress: listen }),
       active && btn('PL_NEXT', 'skip_next', { variant: 'icon', ariaLabel: 'Próxima frase', onPress: () => step(1) }),
-      showTop && btn('BTN_TOP', 'arrow_upward', { variant: 'icon', ariaLabel: 'Voltar ao topo do texto', onPress: goTop }),
       active && btn('PL_RATE', 'speed', { label: speech.rate.toLocaleString('pt-BR') + '×', ariaLabel: 'Velocidade ' + speech.rate, onPress: cycleRate }),
       active && btn('PL_STOP', 'stop', { variant: 'icon', ariaLabel: 'Parar áudio', onPress: stopAll }),
       active
@@ -782,8 +760,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
 
       <main class="body">
         <div class="reader-wrap">
-          <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt}
-            onReread=${goTop} onRereadArrow=${rereadArrow} />
+          <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt} />
           <div class="track" aria-hidden="true"><span class="fill" style=${{ height: prog.pct * 100 + '%' }}></span></div>
           <div class="side">
             <${ReadingStats} pct=${prog.pct} from=${Math.max(prog.first, speech.idx)} />
