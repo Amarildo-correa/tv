@@ -155,10 +155,29 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 /* Espaço vazio depois de "Fim da matéria". O "Ler novamente" aparece no começo dele (antes do vazio)
    só quando a rolagem chega ao fim do espaço; como o lugar já está reservado, nada se desloca. */
 .end-space { height: 300px; }
+
+/* ---------- Notícias recomendadas (fim do texto): título + uma linha de cards (div.trail) ---------- */
+.recs { padding-bottom: 24px; }
+.recs h2 { margin: 0 0 20px; font: 700 40px/1.2 var(--font); color: var(--fg); }
+.trail { position: relative; overflow: hidden; padding: 12px; margin: -12px; }   /* folga para o anel de foco */
+.trail-track { display: flex; gap: 28px; transition: transform .32s var(--ease); will-change: transform; }
+.rcard {
+  flex: 0 0 380px; box-sizing: border-box; display: flex; flex-direction: column; cursor: pointer;
+  border-radius: 20px; background: var(--panel); overflow: hidden;
+  box-shadow: 0 0 0 3px transparent; transition: box-shadow .18s, background-color .18s;
+}
+.rcard.focused { background: #1d2028; box-shadow: 0 0 0 4px var(--focus-bg), 0 18px 40px rgba(0,0,0,.55); }
+.rcard .rimg { height: 200px; background: #1f2c38; }
+.rcard .rimg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rcard .rtxt { display: flex; flex-direction: column; gap: 8px; padding: 18px 22px 22px; }
+.rcard .rtag { font: 500 22px/1.2 var(--font); color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+.rcard .rtitle {
+  margin: 0; font: 700 28px/1.25 var(--font); color: #fff;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.5em;
+}
+.rcard .rtime { font: 500 22px/1.2 var(--font); color: var(--muted); }
 .reread { display: flex; align-items: center; padding-top: 20px; animation: fade .25s var(--ease); }
 .reread .tvbtn { flex: none; }
-/* Lembrete ao lado do botão: onde vão entrar os cards de notícias recomendadas */
-.reread-note { flex: 1; min-width: 0; margin-left: 36px; font: 500 26px/1.3 ui-monospace, "Roboto Mono", Menlo, Consolas, monospace; color: var(--muted); }
 .end-mark.bump { animation: end-bump .5s var(--ease); }
 .end-mark.bump strong { animation: end-flash 1s ease; }
 @keyframes end-bump { 30% { transform: translateY(-14px); } }
@@ -400,8 +419,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   }
 
   /* ---------- Componentes focáveis ---------- */
-  function TvButton({ focusKey, icon, label, sub, onPress, onArrow, variant = '', ariaLabel }) {
-    const { ref, focused } = useFocusable({ focusKey, onEnterPress: () => onPress && onPress(), onArrowPress: onArrow });
+  function TvButton({ focusKey, icon, label, sub, onPress, onArrow, onFocus, variant = '', ariaLabel }) {
+    const { ref, focused } = useFocusable({ focusKey, onEnterPress: () => onPress && onPress(), onArrowPress: onArrow, onFocus });
     return html`<button ref=${ref} type="button" tabIndex="-1"
       class=${'tvbtn ' + variant + (focused ? ' focused' : '')}
       aria-label=${ariaLabel || label}
@@ -419,12 +438,12 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   }
 
   // Área de leitura. Expõe firstVisible / press / release / atTop / toTop pelo objeto `api`.
-  function Reader({ sizePx, idx, api, onProgress, userScrollAt, reread, onReread, onRereadArrow }) {
+  function Reader({ sizePx, idx, api, onProgress, userScrollAt, reread, onReread, onRereadArrow, onRecsUp, onRecsDown }) {
     const el = useRef(null), pct = useRef(load().scroll || 0), line = useRef(0), timers = useRef({});
     const [edges, setEdges] = useState({ top: true, end: false });
     const maxScroll = () => el.current.scrollHeight - el.current.clientHeight;
     line.current = sizePx * 1.5;   // .prose usa line-height: 1.5
-    const endMark = useRef(null), live = useRef(null), space = useRef(null);
+    const endMark = useRef(null), live = useRef(null), space = useRef(null), rail = useRef(null);
     // ↓ no fim do texto: a marca "Fim da matéria" quica e o aviso é lido por leitores de tela.
     // Mexe direto no DOM (sem estado) para não redesenhar o texto a cada toque.
     const bumpEnd = (dir) => {
@@ -451,7 +470,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       const e = el.current, m = endMark.current, s = m && m.querySelector('strong');
       if (!s) return false;
       const y = m.offsetTop + s.offsetTop, top = e.scrollTop;
-      return y >= top + (top < 4 ? 0 : 80) && y + s.offsetHeight <= top + e.clientHeight - bottomFade(top);
+      // inteiro e nítido na tela, ou já passou dele (rolando pelas notícias recomendadas)
+      return y + s.offsetHeight <= top + e.clientHeight - bottomFade(top);
     };
     const measure = () => {
       const top = el.current.scrollTop, max = maxScroll(), t = top < 4, end = top >= max - 4;
@@ -461,9 +481,15 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       const m = endMark.current, h = el.current.clientHeight;
       const endMax = m ? Math.min(max, m.offsetTop + m.offsetHeight - (h - 150)) : max;
       const ev = endVisible();
-      // Distância entre a base do espaço vazio e a base da área de leitura (≤ 0: chegou ao fim do espaço)
-      const sp = space.current, spaceGap = sp ? sp.offsetTop + sp.offsetHeight - (top + h) : 0;
-      onProgress(ev || endMax <= 0 ? 1 : clamp(top / endMax, 0, 1), firstVisible(), top, ev, spaceGap);
+      // Espaço vazio: quanto a base dele está abaixo da base da tela (≤ 0: chegou ao fim do espaço)
+      // e quanto o começo dele (onde fica o "Ler novamente") está abaixo da base da tela
+      const sp = space.current;
+      const spaceGap = sp ? sp.offsetTop + sp.offsetHeight - (top + h) : 0;
+      const spaceTopGap = sp ? sp.offsetTop - (top + h) : 0;
+      // Linha de cards recomendados inteira na área nítida da tela
+      const r = rail.current;
+      const railVisible = !!r && r.offsetTop - 12 >= top + (top < 4 ? 0 : 80) && r.offsetTop + r.offsetHeight + 12 <= top + h - bottomFade(top);
+      onProgress(ev || endMax <= 0 ? 1 : clamp(top / endMax, 0, 1), firstVisible(), top, ev, spaceGap, spaceTopGap, railVisible);
     };
 
     api.current = {
@@ -478,6 +504,14 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       // Rola só o necessário para o "Ler novamente" (com o anel de foco) caber na tela; em geral, nada
 
       bump: () => bumpEnd(1),
+      // Rola só o necessário para o "Ler novamente" (com o anel de foco) ficar na área nítida
+      showReread: () => {
+        const e = el.current, b = e.querySelector('.reread');
+        if (!b) return;
+        const top = e.scrollTop, y = b.offsetTop, y2 = y + b.offsetHeight + 12;
+        if (y - 12 < top + 80) scroller.current.to(y - 12 - 80);
+        else if (y2 > top + e.clientHeight) scroller.current.to(y2 - e.clientHeight);
+      },
       // Compensa a troca do hero. Se a pessoa pediu o topo ("Topo" / "Ler novamente"), segue até o início
       // depois que o hero abre, em vez de parar na posição compensada.
       shift: (d) => {
@@ -526,19 +560,65 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
         <div ref=${endMark} class="end-mark"><strong>Fim da matéria</strong></div>
         <div ref=${space} class="end-space">
           ${reread && html`<div class="reread">
-            <${TvButton} focusKey="BTN_REREAD" icon="arrow_upward" label="Ler novamente" ariaLabel="Ler novamente desde o início" onPress=${onReread} onArrow=${onRereadArrow} />
-            <${Recommended} />
+            <${TvButton} focusKey="BTN_REREAD" icon="arrow_upward" label="Ler novamente" ariaLabel="Ler novamente desde o início"
+              onPress=${onReread} onArrow=${onRereadArrow} onFocus=${() => api.current.showReread()} />
           </div>`}
         </div>
+        <${Recommended} railRef=${rail} onUp=${onRecsUp} onDown=${onRecsDown} />
       </div>
       <div ref=${live} class="sr" role="status" aria-live="polite"></div>
     </div>`;
   }
 
-  // Lembrete ao lado do "Ler novamente"
-  function Recommended() {
-    // Aqui ficará Cards de notícias recomendadas.
-    return html`<span class="reread-note" aria-hidden="true">// Abaixo do Button Ler novamente ficará Cards de notícias recomendadas</span>`;
+  // Notícias recomendadas: os mesmos cards em todas as matérias (as mais recentes, sem a matéria aberta)
+  const RECS = STORIES.filter(s => s.id !== STORY.id).sort((a, b) => a.mins - b.mins).slice(0, 8);
+  const RECS_VISIBLE = 3;   // cards inteiros na largura do texto
+  const agoText = (m) => m < 60 ? 'Há ' + m + (m === 1 ? ' minuto' : ' minutos')
+    : 'Há ' + Math.round(m / 60) + (Math.round(m / 60) === 1 ? ' hora' : ' horas');
+  const openStory = (id) => location.replace('post.html?id=' + id + '&t=' + Date.now());
+
+  function RecCard({ s, i, onFocusCard, onArrow }) {
+    const { ref, focused } = useFocusable({
+      focusKey: 'REC_' + s.id,
+      onEnterPress: () => openStory(s.id),
+      onFocus: () => onFocusCard(i),
+      onArrowPress: (dir) => onArrow(dir, i)
+    });
+    const img = (IMGS[s.id] || '').replace('/960px-', '/500px-');
+    return html`<div ref=${ref} class=${'rcard' + (focused ? ' focused' : '')} role="link" aria-label=${s.cat + ': ' + s.title}
+        onMouseEnter=${() => setFocus('REC_' + s.id)} onClick=${() => openStory(s.id)}>
+      <div class="rimg">${img && html`<img alt="" loading="lazy" src=${img} onError=${e => e.currentTarget.remove()} />`}</div>
+      <div class="rtxt">
+        <span class="rtag">${s.cat}</span>
+        <h3 class="rtitle">${s.title}</h3>
+        <span class="rtime">${agoText(s.mins)}</span>
+      </div>
+    </div>`;
+  }
+
+  // Uma linha de cards (div.trail): ← → andam entre os cards; ↑ volta ao "Ler novamente"; ↓ vai para a barra de ações
+  function Recommended({ railRef, onUp, onDown }) {
+    const { ref, focusKey } = useFocusable({ focusKey: 'RECS', saveLastFocusedChild: true });
+    const [off, setOff] = useState(0);
+    const track = useRef(null);
+    const onFocusCard = (i) => setOff(o => i < o ? i : i > o + RECS_VISIBLE - 1 ? i - RECS_VISIBLE + 1 : o);
+    const onArrow = (dir, i) => {
+      if (dir === 'left') return i > 0;
+      if (dir === 'right') return i < RECS.length - 1;
+      if (dir === 'up') onUp(); else onDown();
+      return false;
+    };
+    const step = () => { const t = track.current, c = t && t.children; return c && c.length > 1 ? c[1].offsetLeft - c[0].offsetLeft : 408; };
+    return html`<${FocusContext.Provider} value=${focusKey}>
+      <section class="recs" aria-label="Notícias recomendadas">
+        <h2>Notícias recomendadas</h2>
+        <div ref=${railRef}><div ref=${ref} class="trail">
+          <div ref=${track} class="trail-track" style=${{ transform: 'translateX(' + (-off * step()) + 'px)' }}>
+            ${RECS.map((s, i) => html`<${RecCard} key=${s.id} s=${s} i=${i} onFocusCard=${onFocusCard} onArrow=${onArrow} />`)}
+          </div>
+        </div></div>
+      </section>
+    <//>`;
   }
 
   // Tempo restante, calculado pelas palavras que faltam a partir do ponto real de leitura
@@ -644,10 +724,24 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     };
     const rereadPress = () => { setReread(false); goTop(); };
 
+    // Cards recomendados: o foco vai para eles sozinho quando a linha fica inteira na tela
+    // (não com áudio tocando nem com o diálogo aberto, e não se o foco já está num card)
+    const [railVisible, setRailVisible] = useState(false);
+    const railSeen = useRef(false);
+    useEffect(() => {
+      const was = railSeen.current; railSeen.current = railVisible;
+      const k = getCurrentFocusKey() || '';
+      if (!was && railVisible && !active && !modal && !k.startsWith('REC_')) setFocus('RECS');
+    }, [railVisible]);
+    const recsUp = () => setFocus(doesFocusableExist('BTN_REREAD') ? 'BTN_REREAD' : doesFocusableExist('BTN_TOP') ? 'BTN_TOP' : 'BTN_LISTEN');
+    const recsDown = () => setFocus('BTN_LISTEN');
+
     const actionArrow = (dir, _props, details) => {
       if (dir !== 'up' && dir !== 'down') return true;
       const repeat = !!(details && details.pressedKeys && details.pressedKeys[dir] > 1);
-      if (dir === 'up' && reread && getCurrentFocusKey() !== 'BTN_REREAD') { setFocus('BTN_REREAD'); return false; }   // da barra volta ao Ler novamente
+      // Da barra, ↑ volta aos cards (se estão inteiros na tela) ou ao "Ler novamente"
+      if (dir === 'up' && railVisible && getCurrentFocusKey() !== 'BTN_REREAD') { setFocus('RECS'); return false; }
+      if (dir === 'up' && reread && getCurrentFocusKey() !== 'BTN_REREAD') { setFocus('BTN_REREAD'); return false; }
       if (dir === 'up' && !repeat && reader.current.atTop()) return true;
       learnScroll();
       reader.current.press(dir === 'down' ? 1 : -1, repeat);
@@ -718,10 +812,12 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       a.classList.toggle('collapsed', was);
       return (gap.current = Math.max(0, open - shut));
     };
-    const onProgress = (pct, first, top, end, spaceGap) => {
-      // Mostra ao chegar no fim do espaço vazio; esconde quando ele volta a ficar 40 px abaixo da tela (histerese)
+    const onProgress = (pct, first, top, end, spaceGap, spaceTopGap, railVisible) => {
+      // "Ler novamente": aparece ao chegar no fim do espaço vazio; some quando a rolagem sobe a ponto de o
+      // lugar dele (começo do espaço) sair pela base da tela
       if (!rereadRef.current && spaceGap <= 4) setReread(true);
-      else if (rereadRef.current && spaceGap > 40) setReread(false);
+      else if (rereadRef.current && spaceTopGap > -40) setReread(false);
+      setRailVisible(railVisible);
       const c = collapsedRef.current;
       if (!c && top >= gap.current + 24) setCollapsed(true);
       else if (c && top < 8) setCollapsed(false);
@@ -820,7 +916,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       <main class="body">
         <div class="reader-wrap">
           <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt}
-            reread=${reread} onReread=${rereadPress} onRereadArrow=${rereadArrow} />
+            reread=${reread} onReread=${rereadPress} onRereadArrow=${rereadArrow} onRecsUp=${recsUp} onRecsDown=${recsDown} />
           <div class="track" aria-hidden="true"><span class="fill" style=${{ height: prog.pct * 100 + '%' }}></span></div>
           <div class="side">
             <${ReadingStats} done=${atEnd} from=${Math.max(prog.first, speech.idx)} />
