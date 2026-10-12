@@ -117,11 +117,14 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
   --mask: linear-gradient(#000 calc(100% - 150px), transparent);
   -webkit-mask-image: var(--mask); mask-image: var(--mask);
 }
-.reader.scrolled { --mask: linear-gradient(transparent, #000 80px, #000 calc(100% - 150px), transparent); }
-.reader.scrolled.at-end { --mask: linear-gradient(transparent, #000 80px); }
+/* --ft: altura do degradê do topo. 80 px; menor quando os botões do fim chegam perto do topo, para o
+   degradê terminar logo acima deles e nunca cobri-los (ver syncLayer) */
+.reader.scrolled { --mask: linear-gradient(transparent, #000 var(--ft, 80px), #000 calc(100% - 150px), transparent); }
+.reader.scrolled.at-end { --mask: linear-gradient(transparent, #000 var(--ft, 80px)); }
 .reader.at-end:not(.scrolled) { --mask: none; }
 /* Fim da matéria na tela (barra de ações oculta): sem degradê na base, só o do topo */
-.end-zone .reader.scrolled, .end-zone .recs-layer { --mask: linear-gradient(transparent, #000 80px); }
+.end-zone .reader.scrolled { --mask: linear-gradient(transparent, #000 var(--ft, 80px)); }
+.end-zone .recs-layer { --mask: linear-gradient(transparent, #000 80px); }
 /* Com "Ler novamente" à mostra, a base fica sem degradê: o botão pode encostar na barra de ações sem rolar o texto */
 .prose { max-width: 1220px; font-size: var(--read-size); line-height: 1.5; }
 .prose p { margin: 0 0 .85em; font-weight: 500; }
@@ -484,6 +487,12 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
         const max = e.scrollHeight - e.clientHeight, endBottom = m.offsetTop + m.offsetHeight;
         const want = Math.max(SAFE_Y, Math.round(cur + endBottom - max + 8));
         if (want !== cur) r.style.paddingBottom = want + 'px';
+      }
+      // Degradê do topo nunca por cima de Voltar / Ler novamente: termina logo acima deles (com o anel de foco)
+      const ea = e.querySelector('.end-actions');
+      if (ea) {
+        const ft = clamp(Math.round(ea.offsetTop - e.scrollTop - 14), 0, 80) + 'px';
+        if (e.style.getPropertyValue('--ft') !== ft) e.style.setProperty('--ft', ft);
       }
       const hgt = i.offsetHeight + 'px';   // só a altura das recomendadas, sem espaço extra em cima
       if (a.style.height !== hgt) a.style.height = hgt;
