@@ -149,7 +149,9 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 /* Fim do texto: "Fim da matéria" logo depois da última palavra, no mesmo estilo das frases (span.s),
    só na cor de destaque; ↓ no fim faz a marca "quicar" */
 .s.end { display: inline-block; color: var(--accent); }
-.recs-anchor { margin-top: 0; }
+.recs-anchor { margin-top: 24px; }
+/* Voltar e Ler novamente logo abaixo da linha do "Fim da matéria", rolando junto com o texto */
+.end-actions { display: flex; align-items: center; gap: 28px; margin-top: 36px; }
 
 /* ---------- Notícias recomendadas ----------
    Fora da área que rola, numa camada da largura toda da tela (div.stage), sobre a área de leitura.
@@ -199,7 +201,10 @@ body { margin: 0; background: #050507; color: var(--fg); overflow: hidden; font-
 .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 .dock { flex: none; padding-top: 24px; }
-.actions.rail-mode > :not([data-k="BTN_BACK"]):not([data-k="BTN_TOP"]) { visibility: hidden; }   /* foco nos cards: só Voltar e Ler novamente */
+/* "Fim da matéria" na tela: a barra some e a área de leitura desce até a base da tela (o texto não se mexe:
+   ela cresce para baixo). A barra de progresso, já em 100%, sai para não passar por trás das recomendadas. */
+.dock.off { display: none; }
+.end-zone .track { visibility: hidden; }
 .actions .slot { flex: none; width: 84px; height: 84px; }   /* lugar do Topo quando ele some: os outros botões não andam */
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 28px; }   /* folga para o anel de foco não encostar no vizinho */
 
@@ -451,7 +456,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   }
 
   // Área de leitura. Expõe firstVisible / press / release / atTop / toTop pelo objeto `api`.
-  function Reader({ sizePx, idx, api, onProgress, userScrollAt, onRecsUp, onRecsDown, onRecsActive }) {
+  function Reader({ sizePx, idx, api, onProgress, userScrollAt, onRecsUp, onRecsDown, onRecsActive, onEndBack, onReread, onEndArrow }) {
     const { Fragment } = React;
     const el = useRef(null), pct = useRef(load().scroll || 0), line = useRef(0), timers = useRef({});
     const [edges, setEdges] = useState({ top: true, end: false });
@@ -517,7 +522,9 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       }
       // Último span.s ("Fim da matéria") entrou por baixo do hero (no degradê do topo), ou a rolagem chegou ao fim
       const endPassed = !!m && (m.offsetTop + m.offsetHeight <= top + 80 || (end && ev));
-      onProgress(ev || endMax <= 0 ? 1 : clamp(top / endMax, 0, 1), firstVisible(), top, ev, railVisible, endPassed);
+      // Linha do "Fim da matéria" já entrou na tela, mesmo que ainda sob o degradê da base
+      const endInView = !!m && m.offsetTop < top + h;
+      onProgress(ev || endMax <= 0 ? 1 : clamp(top / endMax, 0, 1), firstVisible(), top, ev, railVisible, endPassed, endInView);
     };
 
     api.current = {
@@ -532,6 +539,14 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       to: (y) => { touched(); scroller.current.to(y); },
 
       bump: () => bumpEnd(1),
+      // Rola só o necessário para os botões do fim (com o anel de foco) ficarem na área nítida
+      revealEnd: () => {
+        const e = el.current, b = e.querySelector('.end-actions');
+        if (!b) return;
+        const top = e.scrollTop, y = b.offsetTop - 12, y2 = b.offsetTop + b.offsetHeight + 12;
+        if (y < top + 80) scroller.current.to(y - 80);
+        else if (y2 > top + e.clientHeight - bottomFade(top)) scroller.current.to(y2 - e.clientHeight + 150);
+      },
       // Compensa a troca do hero. Se a pessoa pediu o topo ("Topo" / "Ler novamente"), segue até o início
       // depois que o hero abre, em vez de parar na posição compensada.
       shift: (d) => {
@@ -580,6 +595,10 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
           const end = bi === DOC.length - 1 && html` <span ref=${endMark} class="s end">Fim da matéria</span>`;
           return b.type === 'h' ? html`<h2 key=${bi}>${kids}${end}</h2>` : html`<p key=${bi}>${kids}${end}</p>`;
         })}
+        <div class="end-actions">
+          <${TvButton} focusKey="BTN_END_BACK" icon="arrow_back" variant="icon" ariaLabel="Voltar" onPress=${onEndBack} onArrow=${onEndArrow} />
+          <${TvButton} focusKey="BTN_REREAD" icon="arrow_upward" label="Ler novamente" ariaLabel="Ler novamente desde o início" onPress=${onReread} onArrow=${onEndArrow} />
+        </div>
         <div ref=${anchor} class="recs-anchor" aria-hidden="true"></div>
       </div>
       <div ref=${live} class="sr" role="status" aria-live="polite"></div>
@@ -705,6 +724,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     const showTop = prog.pct > 0.01;
     // Fim alcançado assim que "Fim da matéria" aparece inteiro e nítido na tela (não só no fim da rolagem)
     const atEnd = prog.end;
+    // O Topo some no início do texto: se o foco estava nele, passa para "Ouvir texto"
+    useEffect(() => { if (!showTop && getCurrentFocusKey() === 'BTN_TOP') setTimeout(() => setFocus('BTN_LISTEN'), 0); }, [showTop]);
 
     const listen = () => {
       if (!speech.supported) return say('volume_off', 'Este navegador não tem leitura em voz alta');
@@ -731,16 +752,29 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     // (não com áudio tocando nem com o diálogo aberto, e não se o foco já está num card)
     const [railVisible, setRailVisible] = useState(false);
     const [recsFocused, setRecsFocused] = useState(false);   // foco num card recomendado
-    // Enquanto o Topo mostra "Ler novamente" (fim da matéria) ou o foco está nos cards, a barra mostra só
-    // Voltar e Ler novamente, com ou sem foco neles. Com o áudio ativo os controles do player continuam.
-    const dockMinimal = (atEnd || recsFocused) && !active;
-    const dockMinimalRef = useRef(false); dockMinimalRef.current = dockMinimal;
-    // Foco num botão que ficou oculto (ex.: matéria aberta já no fim): vai para "Ler novamente"
+    // Assim que a linha do "Fim da matéria" entra na tela (mesmo sob o degradê), a barra de ações some e
+    // Voltar / Ler novamente passam a ser os botões abaixo dessa linha, que rolam com o texto.
+    // Com o áudio ativo a barra continua (controles do player).
+    const [endInView, setEndInView] = useState(false);
+    const dockOff = endInView && !active;
+    const END_KEYS = ['BTN_END_BACK', 'BTN_REREAD'];
     useEffect(() => {
-      if (!dockMinimal || modal) return;
+      if (modal) return;
       const k = getCurrentFocusKey() || '';
-      if (k !== 'BTN_BACK' && k !== 'BTN_TOP' && !k.startsWith('REC_')) setTimeout(() => { if (doesFocusableExist('BTN_TOP')) setFocus('BTN_TOP'); }, 0);
-    }, [dockMinimal]);
+      if (dockOff && !k.startsWith('REC_') && !END_KEYS.includes(k)) setTimeout(() => setFocus('BTN_REREAD'), 0);
+      else if (!dockOff && END_KEYS.includes(k)) setTimeout(() => setFocus(doesFocusableExist('BTN_TOP') ? 'BTN_TOP' : 'BTN_LISTEN'), 0);
+    }, [dockOff]);
+    // Botões do fim: ← → entre Voltar e Ler novamente; ↑ ↓ rolam o texto (foco parado)
+    const endArrow = (dir, props, details) => {
+      const k = getCurrentFocusKey();
+      if (dir === 'right') { if (k === 'BTN_END_BACK') setFocus('BTN_REREAD'); return false; }
+      if (dir === 'left') { if (k === 'BTN_REREAD') setFocus('BTN_END_BACK'); return false; }
+      learnScroll();
+      const repeat = !!(details && details.pressedKeys && details.pressedKeys[dir] > 1);
+      if (dir === 'up' && !repeat && reader.current.atTop()) return false;
+      reader.current.press(dir === 'down' ? 1 : -1, repeat);
+      return false;
+    };
     const [endPassed, setEndPassed] = useState(false);
     const endPassedSeen = useRef(null);   // null: primeira medição não conta (posição salva já depois do fim)
     useEffect(() => {
@@ -751,14 +785,12 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
         setFocus('REC_' + RECS[0].id);
       }
     }, [endPassed]);
-    // Dos cards, ↑ e ↓ levam ao "Ler novamente" da barra (↑ também sobe um pouco o texto)
-    const toReread = () => setFocus(doesFocusableExist('BTN_TOP') ? 'BTN_TOP' : 'BTN_LISTEN');
-    const recsUp = () => { toReread(); reader.current.press(-1, false); };
-    const recsDown = toReread;
+    // Dos cards, ↑ volta ao "Ler novamente" do fim do texto (rolando só o necessário para ele aparecer);
+    // ↓ não tem para onde ir (a barra está oculta)
+    const recsUp = () => { setFocus('BTN_REREAD'); reader.current.revealEnd(); };
+    const recsDown = () => reader.current.bump();
 
     const actionArrow = (dir, _props, details) => {
-      // Barra reduzida (só Voltar e Ler novamente): → no "Ler novamente" não vai para os botões ocultos
-      if (dir === 'right' && dockMinimalRef.current && getCurrentFocusKey() === 'BTN_TOP') return false;
       if (dir !== 'up' && dir !== 'down') return true;
       const repeat = !!(details && details.pressedKeys && details.pressedKeys[dir] > 1);
       // Da barra, ↑ volta aos cards quando eles estão inteiros na tela
@@ -827,13 +859,16 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     const measureGap = () => {
       const a = appEl.current, r = a && a.querySelector('.reader');
       if (!r) return 0;
+      // Posição da área de leitura dentro do .app (somando os offsetParent: o .body também é posicionado)
+      const topInApp = () => { let y = 0, n = r; while (n && n !== a) { y += n.offsetTop; n = n.offsetParent; } return y; };
       const was = a.classList.contains('collapsed');
-      a.classList.remove('collapsed'); const open = r.offsetTop;
-      a.classList.add('collapsed'); const shut = r.offsetTop;
+      a.classList.remove('collapsed'); const open = topInApp();
+      a.classList.add('collapsed'); const shut = topInApp();
       a.classList.toggle('collapsed', was);
       return (gap.current = Math.max(0, open - shut));
     };
-    const onProgress = (pct, first, top, end, railVisible, endPassed) => {
+    const onProgress = (pct, first, top, end, railVisible, endPassed, endInView) => {
+      setEndInView(endInView);
       setRailVisible(railVisible);
       setEndPassed(endPassed);
       const c = collapsedRef.current;
@@ -858,15 +893,6 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     }, [collapsed]);
 
     useEffect(() => { setFocus('BTN_LISTEN'); }, []);
-    // Ao chegar no fim do texto rolando, o foco vai para o botão do topo.
-    // Não na primeira medição (texto que cabe na tela ou posição salva já no fim), nem com áudio tocando
-    // ou com o diálogo de saída aberto, para não tirar o foco de onde a pessoa está.
-    const endSeen = useRef(null);
-    useEffect(() => {
-      const was = endSeen.current; endSeen.current = atEnd;
-      if (was === false && atEnd && !active && !modal && reader.current.canScroll())
-        setTimeout(() => { if (doesFocusableExist('BTN_TOP')) setFocus('BTN_TOP'); }, 0);
-    }, [atEnd]);
     useEffect(() => {
       const onFs = () => setIsFs(!!FS_DOC.fullscreenElement);
       FS_DOC.addEventListener('fullscreenchange', onFs);
@@ -880,6 +906,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
           e.preventDefault();
           if (modal) return closeModal();
           const k = getCurrentFocusKey();
+          // Com a barra oculta (fim da matéria), Voltar abre direto o diálogo de saída
+          if (dockOff) return openModal();
           return k !== 'BTN_LISTEN' && k !== 'BTN_BACK' ? setFocus('BTN_LISTEN') : openModal();
         }
         if (modal) return;
@@ -898,10 +926,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     const sizeLabel = 'Tamanho do texto: ' + SIZES[sizeIdx].label;
     const buttons = [
       btn('BTN_BACK', 'arrow_back', { variant: 'icon back', ariaLabel: 'Voltar', onPress: openModal }),
-      // Topo antes de "Ouvir texto". No fim da matéria vira "Ler novamente" (mesmo botão, mesmo lugar).
-      // Escondido no início do texto; o lugar fica reservado para os outros botões não andarem
+      // Topo antes de "Ouvir texto"; escondido no início do texto, com o lugar reservado para os outros não andarem
       !showTop ? html`<span key="TOP_SLOT" class="slot" aria-hidden="true"></span>`
-      : atEnd ? btn('BTN_TOP', 'arrow_upward', { label: 'Ler novamente', ariaLabel: 'Ler novamente desde o início', onPress: goTop })
       : btn('BTN_TOP', 'arrow_upward', { variant: 'icon', ariaLabel: 'Voltar ao topo do texto', onPress: goTop }),
       active && btn('PL_PREV', 'skip_previous', { variant: 'icon', ariaLabel: 'Frase anterior', onPress: () => step(-1) }),
       active
@@ -932,10 +958,11 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
         <div class="hero-thumb" aria-hidden="true"><img alt="" src=${HERO_IMG} /></div>
       </header>
 
-      <main class="body">
+      <main class=${'body' + (dockOff ? ' end-zone' : '')}>
         <div class="reader-wrap">
           <${Reader} sizePx=${SIZES[sizeIdx].px} idx=${speech.idx} api=${reader} onProgress=${onProgress} userScrollAt=${userScrollAt}
-            onRecsUp=${recsUp} onRecsDown=${recsDown} onRecsActive=${setRecsFocused} />
+            onRecsUp=${recsUp} onRecsDown=${recsDown} onRecsActive=${setRecsFocused}
+            onEndBack=${openModal} onReread=${goTop} onEndArrow=${endArrow} />
           <div class="track" aria-hidden="true"><span class="fill" style=${{ height: prog.pct * 100 + '%' }}></span></div>
           <div class="side">
             <${ReadingStats} done=${atEnd} from=${Math.max(prog.first, speech.idx)} />
@@ -949,7 +976,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
             </div>`}
           </div>
         </div>
-        <div class="dock"><${Row} focusKey="ACTIONS" className=${'actions' + (dockMinimal ? ' rail-mode' : '')}>${buttons}<//></div>
+        <div class=${'dock' + (dockOff ? ' off' : '')}><${Row} focusKey="ACTIONS" className="actions">${buttons}<//></div>
       </main>
 
       ${guides && html`<div class="guides" aria-hidden="true"><span>Área segura · 5%</span></div>`}
