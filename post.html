@@ -305,6 +305,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
   const WORDS_FROM = new Array(SENTENCES.length + 1).fill(0);
   for (let i = SENTENCES.length - 1; i >= 0; i--) WORDS_FROM[i] = WORDS_FROM[i + 1] + SENTENCES[i].split(/\s+/).length;
 
+  const SAFE_Y = 54;   // área segura da TV na base: 5% de 1080
   const SIZES = [{ label: 'Médio', px: 46 }, { label: 'Grande', px: 50 }, { label: 'Extra', px: 54 }];
   const RATES = [0.9, 1, 1.15, 1.3];
   const STORE = 'readontv:post-' + STORY.id;
@@ -543,13 +544,15 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
       to: (y) => { touched(); scroller.current.to(y); },
 
       bump: () => bumpEnd(1),
-      // Rola só o necessário para os botões do fim (com o anel de foco) ficarem na área nítida
+      // Rola só o necessário para os botões do fim (com o anel de foco) ficarem na área nítida e, embaixo,
+      // dentro da área segura da TV (5% = 54 px; a leitura vai até a base da tela quando a barra some)
       revealEnd: () => {
         const e = el.current, b = e.querySelector('.end-actions');
         if (!b) return;
         const top = e.scrollTop, y = b.offsetTop - 12, y2 = b.offsetTop + b.offsetHeight + 12;
+        const bottomGap = endZoneRef.current ? SAFE_Y : 150;
         if (y < top + 80) scroller.current.to(y - 80);
-        else if (y2 > top + e.clientHeight - bottomFade(top)) scroller.current.to(y2 - e.clientHeight + 150);
+        else if (y2 > top + e.clientHeight - bottomGap) scroller.current.to(y2 - e.clientHeight + bottomGap);
       },
       // Compensa a troca do hero. Se a pessoa pediu o topo ("Topo" / "Ler novamente"), segue até o início
       // depois que o hero abre, em vez de parar na posição compensada.
@@ -600,8 +603,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
           return b.type === 'h' ? html`<h2 key=${bi}>${kids}${end}</h2>` : html`<p key=${bi}>${kids}${end}</p>`;
         })}
         <div class="end-actions">
-          <${TvButton} focusKey="BTN_END_BACK" icon="arrow_back" variant="icon" ariaLabel="Voltar" onPress=${onEndBack} onArrow=${onEndArrow} />
-          <${TvButton} focusKey="BTN_REREAD" icon="arrow_upward" label="Ler novamente" ariaLabel="Ler novamente desde o início" onPress=${onReread} onArrow=${onEndArrow} />
+          <${TvButton} focusKey="BTN_END_BACK" icon="arrow_back" variant="icon" ariaLabel="Voltar" onPress=${onEndBack} onArrow=${onEndArrow} onFocus=${() => api.current.revealEnd()} />
+          <${TvButton} focusKey="BTN_REREAD" icon="arrow_upward" label="Ler novamente" ariaLabel="Ler novamente desde o início" onPress=${onReread} onArrow=${onEndArrow} onFocus=${() => api.current.revealEnd()} />
         </div>
         <div ref=${anchor} class="recs-anchor" aria-hidden="true"></div>
       </div>
@@ -789,6 +792,11 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
         setFocus('REC_' + RECS[0].id);
       }
     }, [endPassed]);
+    // Os botões do fim continuam na área segura enquanto têm o foco (a leitura cresce quando a barra some)
+    useEffect(() => {
+      const k = getCurrentFocusKey();
+      if (dockOff && (k === 'BTN_REREAD' || k === 'BTN_END_BACK')) setTimeout(() => reader.current.revealEnd(), 0);
+    }, [dockOff]);
     // Dos cards, ↑ volta ao "Ler novamente" do fim do texto (rolando só o necessário para ele aparecer);
     // ↓ não tem para onde ir (a barra está oculta)
     const recsUp = () => { setFocus('BTN_REREAD'); reader.current.revealEnd(); };
