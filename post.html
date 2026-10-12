@@ -731,6 +731,16 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     // (não com áudio tocando nem com o diálogo aberto, e não se o foco já está num card)
     const [railVisible, setRailVisible] = useState(false);
     const [recsFocused, setRecsFocused] = useState(false);   // foco num card recomendado
+    // Enquanto o Topo mostra "Ler novamente" (fim da matéria) ou o foco está nos cards, a barra mostra só
+    // Voltar e Ler novamente, com ou sem foco neles. Com o áudio ativo os controles do player continuam.
+    const dockMinimal = (atEnd || recsFocused) && !active;
+    const dockMinimalRef = useRef(false); dockMinimalRef.current = dockMinimal;
+    // Foco num botão que ficou oculto (ex.: matéria aberta já no fim): vai para "Ler novamente"
+    useEffect(() => {
+      if (!dockMinimal || modal) return;
+      const k = getCurrentFocusKey() || '';
+      if (k !== 'BTN_BACK' && k !== 'BTN_TOP' && !k.startsWith('REC_')) setTimeout(() => { if (doesFocusableExist('BTN_TOP')) setFocus('BTN_TOP'); }, 0);
+    }, [dockMinimal]);
     const [endPassed, setEndPassed] = useState(false);
     const endPassedSeen = useRef(null);   // null: primeira medição não conta (posição salva já depois do fim)
     useEffect(() => {
@@ -747,6 +757,8 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
     const recsDown = toReread;
 
     const actionArrow = (dir, _props, details) => {
+      // Barra reduzida (só Voltar e Ler novamente): → no "Ler novamente" não vai para os botões ocultos
+      if (dir === 'right' && dockMinimalRef.current && getCurrentFocusKey() === 'BTN_TOP') return false;
       if (dir !== 'up' && dir !== 'down') return true;
       const repeat = !!(details && details.pressedKeys && details.pressedKeys[dir] > 1);
       // Da barra, ↑ volta aos cards quando eles estão inteiros na tela
@@ -937,7 +949,7 @@ var SpatialNav=(()=>{var Xa=Object.create;var ct=Object.defineProperty;var Za=Ob
             </div>`}
           </div>
         </div>
-        <div class="dock"><${Row} focusKey="ACTIONS" className=${'actions' + (recsFocused ? ' rail-mode' : '')}>${buttons}<//></div>
+        <div class="dock"><${Row} focusKey="ACTIONS" className=${'actions' + (dockMinimal ? ' rail-mode' : '')}>${buttons}<//></div>
       </main>
 
       ${guides && html`<div class="guides" aria-hidden="true"><span>Área segura · 5%</span></div>`}
